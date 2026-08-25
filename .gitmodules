@@ -1,0 +1,3 @@
+[submodule "VaultPonyCore"]
+	path = VaultPonyCore
+	url = https://github.com/norsehorse-dev/VaultPonyCore.git

@@ -1,0 +1,38 @@
+[package]
+name = "vaultpony-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# `vaultpony`, not `vaultpony-desktop`: the binary is what users run and what the
+# packaging refers to. `default-run` so `cargo run` is unambiguous with two bins.
+default-run = "vaultpony"
+
+[[bin]]
+name = "vaultpony"
+path = "src/main.rs"
+
+# Console-subsystem binary. On Windows the GUI binary has no stdout, so the CLI
+# verbs need a second binary to print into. Built everywhere so it cannot rot,
+# and used by CI to smoke-test a packaged build with no display.
+[[bin]]
+name = "vaultpony-cli"
+path = "src/bin/vaultpony-cli.rs"
+
+[lib]
+name = "vaultpony_desktop"
+path = "src/lib.rs"
+
+[dependencies]
+vault-core = { workspace = true }
+vc-fs = { workspace = true }
+vc-crypto = { workspace = true }
+vc-types = { workspace = true }
+zeroize = { workspace = true }
+eframe = { version = "0.35", features = ["persistence"] }
+egui = "0.35"
+rfd = "0.15"
+directories = "6"
+anyhow = "1"

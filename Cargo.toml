@@ -1,0 +1,43 @@
+[workspace]
+members = ["vaultpony-desktop"]
+# The core is its own Cargo workspace living inside this one (a submodule).
+# Exclude it so its member crates resolve against VaultPonyCore/Cargo.toml for
+# their `workspace = true` inheritance, not against this root.
+exclude = ["VaultPonyCore"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+license = "Apache-2.0"
+authors = ["NorseHorse <NorseHorse@norsehor.se>"]
+
+[workspace.dependencies]
+# The shared Rust core, resolved from the VaultPonyCore submodule. On desktop
+# we link it directly; there is no UniFFI boundary here.
+vault-core = { path = "VaultPonyCore/core/vault-core" }
+vc-fs = { path = "VaultPonyCore/core/vc-fs" }
+vc-crypto = { path = "VaultPonyCore/core/vc-crypto" }
+vc-types = { path = "VaultPonyCore/core/vc-types" }
+zeroize = "1"
+
+# Dependencies build optimized even in dev: an unlock runs 500k PBKDF2
+# iterations, and an unoptimized crypto stack makes every debug unlock crawl.
+# The workspace crates stay unoptimized for fast rebuilds.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = "debuginfo"
+panic = "abort"
+codegen-units = 1
+
+# vc-fs depends on a patched vendor copy of fatfs that lives inside the core
+# tree. A [patch] applies only to its own workspace, so a consumer that omits
+# this silently links the unpatched crates.io fatfs instead. Keep it in sync
+# with VaultPonyCore/Cargo.toml.
+[patch.crates-io]
+fatfs = { path = "VaultPonyCore/third_party/fatfs" }

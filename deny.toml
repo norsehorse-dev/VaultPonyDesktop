@@ -1,0 +1,35 @@
+# Mirrors VaultPonyCore/deny.toml. The desktop pulls in the GUI stack (eframe,
+# winit, rfd) and, from P5, the mount runtimes, so the license allow-list is
+# widened only as vetted crates require it, and every addition is justified in
+# the PR that adds it. multiple-versions is a warning, not a denial, because the
+# GUI tree legitimately carries duplicate minor versions.
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+    "OFL-1.1",
+    "CC0-1.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

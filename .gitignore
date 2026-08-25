@@ -1,0 +1,5 @@
+/target
+**/*.rs.bk
+.DS_Store
+# Local two-repo dev override (sibling core checkout). Never committed.
+/.cargo/config.toml
