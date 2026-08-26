@@ -39,7 +39,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo fmt --all --check
+      # Scoped to this crate, not `--all`: `--all` descends into local path
+      # dependencies and would enforce our formatting on the VaultPonyCore
+      # submodule, whose formatting is that repository's concern. clippy and test
+      # use `--workspace`, which covers only this workspace's members (the core is
+      # excluded), so they do not have the same reach.
+      - run: cargo fmt --check -p vaultpony-desktop
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
