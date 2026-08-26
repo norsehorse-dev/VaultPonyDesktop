@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=VaultPony
+GenericName=Encrypted Containers
+Comment=Open and edit VeraCrypt-compatible encrypted containers
+Exec=vaultpony
+Icon=vaultpony
+Terminal=false
+Categories=Utility;Security;
+Keywords=veracrypt;encryption;container;volume;
+StartupWMClass=VaultPony

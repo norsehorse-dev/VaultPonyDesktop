@@ -1,0 +1,1714 @@
+//! Localization (P7): six languages with live in-app switching.
+//!
+//! Vocabulary is harvested from the shipped VaultPonyAndroid string resources so
+//! the desktop matches the phone's terminology exactly (English, German,
+//! Spanish, French, Russian, Brazilian Portuguese). Every key carries all six
+//! translations on one line via [`pick`], so there is no fallback and no way to
+//! leave a language half-filled; a test asserts completeness.
+//!
+//! This localizes the primary UI: tabs, headings, and the main buttons and
+//! labels. Longer explanatory small-print is added to the table over time; it
+//! stays in English until it is.
+
+/// A supported language. `code` is what the settings file stores.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lang {
+    En,
+    De,
+    Es,
+    Fr,
+    Ru,
+    PtBr,
+}
+
+impl Lang {
+    pub const ALL: [Lang; 6] = [Lang::En, Lang::De, Lang::Es, Lang::Fr, Lang::Ru, Lang::PtBr];
+
+    /// The stored code (matches Android's locale qualifiers where sensible).
+    pub fn code(self) -> &'static str {
+        match self {
+            Lang::En => "en",
+            Lang::De => "de",
+            Lang::Es => "es",
+            Lang::Fr => "fr",
+            Lang::Ru => "ru",
+            Lang::PtBr => "pt-BR",
+        }
+    }
+
+    /// The language's own name, for the picker.
+    pub fn native_name(self) -> &'static str {
+        match self {
+            Lang::En => "English",
+            Lang::De => "Deutsch",
+            Lang::Es => "Español",
+            Lang::Fr => "Français",
+            Lang::Ru => "Русский",
+            Lang::PtBr => "Português (Brasil)",
+        }
+    }
+
+    /// Parse a stored code, defaulting to English.
+    pub fn from_code(code: &str) -> Lang {
+        Lang::ALL
+            .into_iter()
+            .find(|l| l.code() == code)
+            .unwrap_or(Lang::En)
+    }
+}
+
+/// A localized string key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Key {
+    TabVolumes,
+    TabFiles,
+    TabCreate,
+    TabTools,
+    TabSettings,
+    Unlock,
+    Lock,
+    Cancel,
+    Delete,
+    Create,
+    CreateContainer,
+    ChooseContainer,
+    Passphrase,
+    Confirm,
+    Pim,
+    Size,
+    Cipher,
+    Hash,
+    Filesystem,
+    HiddenVolume,
+    HiddenPassphrase,
+    AddFile,
+    NewFolder,
+    Extract,
+    Up,
+    ReadWrite,
+    ReadOnly,
+    NoVolumeOpen,
+    Privacy,
+    Language,
+    AutoLock,
+    HideOnUnfocus,
+    ChangePassword,
+    HeaderTools,
+    BackUpHeader,
+    MountAsDrive,
+    Unmount,
+    SubVolumes,
+    SubFiles,
+    SubCreate,
+    SubTools,
+    SubSettings,
+    SecMounted,
+    SecOpenVolume,
+    SecAppearance,
+    SecCreateDefaults,
+    SecAbout,
+    SecHelp,
+    SecSecurity,
+    SecLicenses,
+    SecFamily,
+    SecRestoreHeader,
+    ShowVolumeInfo,
+    RestoreFromFile,
+    RestoreFromEmbedded,
+    ProtectHiddenCheck,
+    NoTraceCheck,
+    HintPimDefault,
+    HintOpenFilesTab,
+    HintHiddenSelect,
+    HintReadOnly,
+    EmptyDir,
+    NoFileChosen,
+}
+
+impl Key {
+    /// Every key, for the completeness test.
+    pub const ALL: [Key; 63] = [
+        Key::TabVolumes,
+        Key::TabFiles,
+        Key::TabCreate,
+        Key::TabTools,
+        Key::TabSettings,
+        Key::Unlock,
+        Key::Lock,
+        Key::Cancel,
+        Key::Delete,
+        Key::Create,
+        Key::CreateContainer,
+        Key::ChooseContainer,
+        Key::Passphrase,
+        Key::Confirm,
+        Key::Pim,
+        Key::Size,
+        Key::Cipher,
+        Key::Hash,
+        Key::Filesystem,
+        Key::HiddenVolume,
+        Key::HiddenPassphrase,
+        Key::AddFile,
+        Key::NewFolder,
+        Key::Extract,
+        Key::Up,
+        Key::ReadWrite,
+        Key::ReadOnly,
+        Key::NoVolumeOpen,
+        Key::Privacy,
+        Key::Language,
+        Key::AutoLock,
+        Key::HideOnUnfocus,
+        Key::ChangePassword,
+        Key::HeaderTools,
+        Key::BackUpHeader,
+        Key::MountAsDrive,
+        Key::Unmount,
+        Key::SubVolumes,
+        Key::SubFiles,
+        Key::SubCreate,
+        Key::SubTools,
+        Key::SubSettings,
+        Key::SecMounted,
+        Key::SecOpenVolume,
+        Key::SecAppearance,
+        Key::SecCreateDefaults,
+        Key::SecAbout,
+        Key::SecHelp,
+        Key::SecSecurity,
+        Key::SecLicenses,
+        Key::SecFamily,
+        Key::SecRestoreHeader,
+        Key::ShowVolumeInfo,
+        Key::RestoreFromFile,
+        Key::RestoreFromEmbedded,
+        Key::ProtectHiddenCheck,
+        Key::NoTraceCheck,
+        Key::HintPimDefault,
+        Key::HintOpenFilesTab,
+        Key::HintHiddenSelect,
+        Key::HintReadOnly,
+        Key::EmptyDir,
+        Key::NoFileChosen,
+    ];
+}
+
+/// Choose the string for `lang` from the six provided, in the fixed order
+/// English, German, Spanish, French, Russian, Brazilian Portuguese.
+#[allow(clippy::too_many_arguments)]
+fn pick(
+    lang: Lang,
+    en: &'static str,
+    de: &'static str,
+    es: &'static str,
+    fr: &'static str,
+    ru: &'static str,
+    pt: &'static str,
+) -> &'static str {
+    match lang {
+        Lang::En => en,
+        Lang::De => de,
+        Lang::Es => es,
+        Lang::Fr => fr,
+        Lang::Ru => ru,
+        Lang::PtBr => pt,
+    }
+}
+
+/// The localized string for `key` in `lang`.
+pub fn t(lang: Lang, key: Key) -> &'static str {
+    match key {
+        Key::TabVolumes => pick(
+            lang,
+            "Volumes",
+            "Volumes",
+            "Volúmenes",
+            "Volumes",
+            "Тома",
+            "Volumes",
+        ),
+        Key::TabFiles => pick(
+            lang,
+            "Files",
+            "Dateien",
+            "Archivos",
+            "Fichiers",
+            "Файлы",
+            "Arquivos",
+        ),
+        Key::TabCreate => pick(
+            lang,
+            "Create",
+            "Erstellen",
+            "Crear",
+            "Créer",
+            "Создать",
+            "Criar",
+        ),
+        Key::TabTools => pick(
+            lang,
+            "Tools",
+            "Werkzeuge",
+            "Herramientas",
+            "Outils",
+            "Инструменты",
+            "Ferramentas",
+        ),
+        Key::TabSettings => pick(
+            lang,
+            "Settings",
+            "Einstellungen",
+            "Ajustes",
+            "Paramètres",
+            "Настройки",
+            "Configurações",
+        ),
+        Key::Unlock => pick(
+            lang,
+            "Unlock",
+            "Entsperren",
+            "Desbloquear",
+            "Déverrouiller",
+            "Разблокировать",
+            "Desbloquear",
+        ),
+        Key::Lock => pick(
+            lang,
+            "Lock",
+            "Sperren",
+            "Bloquear",
+            "Verrouiller",
+            "Заблокировать",
+            "Bloquear",
+        ),
+        Key::Cancel => pick(
+            lang,
+            "Cancel",
+            "Abbrechen",
+            "Cancelar",
+            "Annuler",
+            "Отмена",
+            "Cancelar",
+        ),
+        Key::Delete => pick(
+            lang,
+            "Delete",
+            "Löschen",
+            "Eliminar",
+            "Supprimer",
+            "Удалить",
+            "Excluir",
+        ),
+        Key::Create => pick(
+            lang,
+            "Create",
+            "Erstellen",
+            "Crear",
+            "Créer",
+            "Создать",
+            "Criar",
+        ),
+        Key::CreateContainer => pick(
+            lang,
+            "Create container",
+            "Container erstellen",
+            "Crear contenedor",
+            "Créer un conteneur",
+            "Создать контейнер",
+            "Criar contêiner",
+        ),
+        Key::ChooseContainer => pick(
+            lang,
+            "Choose container...",
+            "Container öffnen…",
+            "Abrir contenedor…",
+            "Ouvrir un conteneur…",
+            "Открыть контейнер…",
+            "Abrir contêiner…",
+        ),
+        Key::Passphrase => pick(
+            lang,
+            "Passphrase",
+            "Passwort",
+            "Contraseña",
+            "Mot de passe",
+            "Пароль",
+            "Senha",
+        ),
+        Key::Confirm => pick(
+            lang,
+            "Confirm",
+            "Bestätigen",
+            "Confirmar",
+            "Confirmer",
+            "Подтвердить",
+            "Confirmar",
+        ),
+        Key::Pim => pick(lang, "PIM", "PIM", "PIM", "PIM", "PIM", "PIM"),
+        Key::Size => pick(
+            lang,
+            "Size",
+            "Größe",
+            "Tamaño",
+            "Taille",
+            "Размер",
+            "Tamanho",
+        ),
+        Key::Cipher => pick(
+            lang,
+            "Cipher",
+            "Verschlüsselung",
+            "Cifrado",
+            "Chiffrement",
+            "Шифрование",
+            "Criptografia",
+        ),
+        Key::Hash => pick(lang, "Hash", "Hash", "Hash", "Hachage", "Хеш", "Hash"),
+        Key::Filesystem => pick(
+            lang,
+            "Filesystem",
+            "Dateisystem",
+            "Sistema de archivos",
+            "Système de fichiers",
+            "Файловая система",
+            "Sistema de arquivos",
+        ),
+        Key::HiddenVolume => pick(
+            lang,
+            "Hidden volume",
+            "Verstecktes Volume",
+            "Volumen oculto",
+            "Volume caché",
+            "Скрытый том",
+            "Volume oculto",
+        ),
+        Key::HiddenPassphrase => pick(
+            lang,
+            "Hidden passphrase",
+            "Verstecktes Passwort",
+            "Contraseña oculta",
+            "Mot de passe caché",
+            "Скрытый пароль",
+            "Senha oculta",
+        ),
+        Key::AddFile => pick(
+            lang,
+            "Add file...",
+            "Importieren",
+            "Importar",
+            "Importer",
+            "Импорт",
+            "Importar",
+        ),
+        Key::NewFolder => pick(
+            lang,
+            "Create folder",
+            "Neuer Ordner",
+            "Nueva carpeta",
+            "Nouveau dossier",
+            "Новая папка",
+            "Nova pasta",
+        ),
+        Key::Extract => pick(
+            lang,
+            "Extract...",
+            "Kopie exportieren",
+            "Exportar una copia",
+            "Exporter une copie",
+            "Экспортировать копию",
+            "Exportar uma cópia",
+        ),
+        Key::Up => pick(lang, "Up", "Hoch", "Subir", "Remonter", "Наверх", "Subir"),
+        Key::ReadWrite => pick(
+            lang,
+            "read-write",
+            "Lesen/Schreiben",
+            "lectura/escritura",
+            "lecture/écriture",
+            "чтение/запись",
+            "leitura/gravação",
+        ),
+        Key::ReadOnly => pick(
+            lang,
+            "read-only",
+            "schreibgeschützt",
+            "solo lectura",
+            "lecture seule",
+            "только чтение",
+            "somente leitura",
+        ),
+        Key::NoVolumeOpen => pick(
+            lang,
+            "No volume open.",
+            "Kein Volume geöffnet.",
+            "Ningún volumen abierto.",
+            "Aucun volume ouvert.",
+            "Нет открытого тома.",
+            "Nenhum volume aberto.",
+        ),
+        Key::Privacy => pick(
+            lang,
+            "Privacy",
+            "Privatsphäre",
+            "Privacidad",
+            "Confidentialité",
+            "Конфиденциальность",
+            "Privacidade",
+        ),
+        Key::Language => pick(
+            lang, "Language", "Sprache", "Idioma", "Langue", "Язык", "Idioma",
+        ),
+        Key::AutoLock => pick(
+            lang,
+            "Auto-lock",
+            "Automatische Sperre",
+            "Bloqueo automático",
+            "Verrouillage automatique",
+            "Автоблокировка",
+            "Bloqueio automático",
+        ),
+        Key::HideOnUnfocus => pick(
+            lang,
+            "Hide contents when unfocused",
+            "Inhalt bei Fokusverlust verbergen",
+            "Ocultar el contenido al perder el foco",
+            "Masquer le contenu hors focus",
+            "Скрывать содержимое без фокуса",
+            "Ocultar o conteúdo sem foco",
+        ),
+        Key::ChangePassword => pick(
+            lang,
+            "Change password",
+            "Passwort ändern",
+            "Cambiar contraseña",
+            "Changer le mot de passe",
+            "Сменить пароль",
+            "Alterar senha",
+        ),
+        Key::HeaderTools => pick(
+            lang,
+            "Header recovery",
+            "Header-Wiederherstellung",
+            "Recuperación de encabezado",
+            "Récupération de l'en-tête",
+            "Восстановление заголовка",
+            "Recuperação de cabeçalho",
+        ),
+        Key::BackUpHeader => pick(
+            lang,
+            "Back up header...",
+            "Header-Sicherung speichern…",
+            "Guardar copia del encabezado…",
+            "Enregistrer la sauvegarde de l'en-tête…",
+            "Сохранить копию заголовка…",
+            "Salvar backup do cabeçalho…",
+        ),
+        Key::MountAsDrive => pick(
+            lang,
+            "Mount as drive",
+            "Als Laufwerk einbinden",
+            "Montar como unidad",
+            "Monter comme lecteur",
+            "Подключить как диск",
+            "Montar como unidade",
+        ),
+        Key::Unmount => pick(
+            lang,
+            "Unmount",
+            "Aushängen",
+            "Desmontar",
+            "Démonter",
+            "Отключить",
+            "Desmontar",
+        ),
+
+        Key::SubVolumes => pick(lang, "Open a VeraCrypt-compatible encrypted container.", "Öffne einen VeraCrypt-kompatiblen verschlüsselten Container.", "Abre un contenedor cifrado compatible con VeraCrypt.", "Ouvrez un conteneur chiffré compatible VeraCrypt.", "Откройте зашифрованный контейнер, совместимый с VeraCrypt.", "Abra um contêiner criptografado compatível com o VeraCrypt."),
+        Key::SubFiles => pick(lang, "Browse the open volume, extract files out, and add files in.", "Durchsuche das geöffnete Volume, entpacke Dateien und füge Dateien hinzu.", "Explora el volumen abierto, extrae archivos y añade archivos.", "Parcourez le volume ouvert, extrayez des fichiers et ajoutez-en.", "Просматривайте открытый том, извлекайте и добавляйте файлы.", "Navegue pelo volume aberto, extraia arquivos e adicione arquivos."),
+        Key::SubCreate => pick(lang, "Make a new VeraCrypt-compatible container.", "Erstelle einen neuen VeraCrypt-kompatiblen Container.", "Crea un nuevo contenedor compatible con VeraCrypt.", "Créez un nouveau conteneur compatible VeraCrypt.", "Создайте новый контейнер, совместимый с VeraCrypt.", "Crie um novo contêiner compatível com o VeraCrypt."),
+        Key::SubTools => pick(lang, "Volume info, header backup and restore, and change password.", "Volume-Info, Header-Sicherung und -Wiederherstellung, Passwort ändern.", "Información del volumen, copia y restauración del encabezado, y cambio de contraseña.", "Infos du volume, sauvegarde et restauration de l'en-tête, changement de mot de passe.", "Сведения о томе, резервная копия и восстановление заголовка, смена пароля.", "Informações do volume, backup e restauração do cabeçalho e alteração de senha."),
+        Key::SubSettings => pick(lang, "Appearance, language, privacy, and what this build is.", "Erscheinungsbild, Sprache, Privatsphäre und Infos zu dieser Version.", "Apariencia, idioma, privacidad y qué es esta versión.", "Apparence, langue, confidentialité et détails de cette version.", "Оформление, язык, конфиденциальность и сведения о сборке.", "Aparência, idioma, privacidade e o que é esta versão."),
+
+        Key::SecMounted => pick(lang, "Mounted", "Eingehängt", "Montado", "Monté", "Подключено", "Montado"),
+        Key::SecOpenVolume => pick(lang, "Open volume", "Geöffnetes Volume", "Volumen abierto", "Volume ouvert", "Открытый том", "Volume aberto"),
+        Key::SecAppearance => pick(lang, "Appearance", "Erscheinungsbild", "Apariencia", "Apparence", "Оформление", "Aparência"),
+        Key::SecCreateDefaults => pick(lang, "Create defaults", "Standardwerte", "Valores por defecto", "Valeurs par défaut", "Значения по умолчанию", "Padrões de criação"),
+        Key::SecAbout => pick(lang, "About", "Über", "Acerca de", "À propos", "О приложении", "Sobre"),
+        Key::SecHelp => pick(lang, "Help", "Hilfe", "Ayuda", "Aide", "Справка", "Ajuda"),
+        Key::SecSecurity => pick(lang, "Security", "Sicherheit", "Seguridad", "Sécurité", "Безопасность", "Segurança"),
+        Key::SecLicenses => pick(lang, "Open-source licenses", "Open-Source-Lizenzen", "Licencias de código abierto", "Licences open source", "Лицензии с открытым кодом", "Licenças de código aberto"),
+        Key::SecFamily => pick(lang, "More from NorseHorse", "Mehr von NorseHorse", "Más de NorseHorse", "Plus de NorseHorse", "Ещё от NorseHorse", "Mais da NorseHorse"),
+        Key::SecRestoreHeader => pick(lang, "Restore header", "Header wiederherstellen", "Restaurar encabezado", "Restaurer l'en-tête", "Восстановить заголовок", "Restaurar cabeçalho"),
+
+        Key::ShowVolumeInfo => pick(lang, "Show volume info", "Volume-Info anzeigen", "Mostrar info del volumen", "Afficher les infos du volume", "Показать сведения о томе", "Mostrar info do volume"),
+        Key::RestoreFromFile => pick(lang, "Restore from file...", "Aus Datei wiederherstellen…", "Restaurar desde archivo…", "Restaurer depuis un fichier…", "Восстановить из файла…", "Restaurar de arquivo…"),
+        Key::RestoreFromEmbedded => pick(lang, "Restore from embedded backup", "Aus eingebetteter Sicherung wiederherstellen", "Restaurar desde copia incorporada", "Restaurer depuis la sauvegarde intégrée", "Восстановить из встроенной копии", "Restaurar do backup incorporado"),
+
+        Key::ProtectHiddenCheck => pick(lang, "Protect a hidden volume (open the outer volume, read-write)", "Verstecktes Volume schützen (äußeres Volume schreibbar öffnen)", "Proteger un volumen oculto (abrir el volumen externo en lectura-escritura)", "Protéger un volume caché (ouvrir le volume externe en lecture-écriture)", "Защитить скрытый том (открыть внешний том для чтения-записи)", "Proteger um volume oculto (abrir o volume externo em leitura-gravação)"),
+        Key::NoTraceCheck => pick(lang, "No-trace mode: do not remember the last-opened container", "Spurlos-Modus: den zuletzt geöffneten Container nicht merken", "Modo sin rastro: no recordar el último contenedor abierto", "Mode sans trace : ne pas mémoriser le dernier conteneur ouvert", "Режим без следов: не запоминать последний открытый контейнер", "Modo sem rastros: não lembrar o último contêiner aberto"),
+
+        Key::HintPimDefault => pick(lang, "blank or 0 uses the default schedule", "leer oder 0 verwendet den Standardplan", "vacío o 0 usa el valor por defecto", "vide ou 0 utilise le calendrier par défaut", "пусто или 0 использует расписание по умолчанию", "vazio ou 0 usa o padrão"),
+        Key::HintOpenFilesTab => pick(lang, "Open the Files tab to browse, extract, and add files.", "Öffne den Tab Dateien zum Durchsuchen, Entpacken und Hinzufügen.", "Abre la pestaña Archivos para explorar, extraer y añadir archivos.", "Ouvrez l'onglet Fichiers pour parcourir, extraire et ajouter des fichiers.", "Откройте вкладку «Файлы», чтобы просматривать, извлекать и добавлять файлы.", "Abra a aba Arquivos para navegar, extrair e adicionar arquivos."),
+        Key::HintHiddenSelect => pick(lang, "To open a hidden volume, just enter its passphrase: the password selects which volume opens.", "Um ein verstecktes Volume zu öffnen, gib einfach dessen Passwort ein: das Passwort wählt das Volume.", "Para abrir un volumen oculto, introduce su contraseña: la contraseña elige qué volumen se abre.", "Pour ouvrir un volume caché, saisissez simplement son mot de passe : le mot de passe choisit le volume.", "Чтобы открыть скрытый том, просто введите его пароль: пароль выбирает, какой том открыть.", "Para abrir um volume oculto, basta digitar sua senha: a senha escolhe qual volume abre."),
+        Key::HintReadOnly => pick(lang, "Read-only. Extract works; add, folder, and delete are disabled.", "Schreibgeschützt. Entpacken funktioniert; Hinzufügen, Ordner und Löschen sind deaktiviert.", "Solo lectura. Extraer funciona; añadir, carpeta y eliminar están desactivados.", "Lecture seule. L'extraction fonctionne ; ajouter, dossier et supprimer sont désactivés.", "Только чтение. Извлечение работает; добавление, папка и удаление отключены.", "Somente leitura. Extrair funciona; adicionar, pasta e excluir estão desativados."),
+        Key::EmptyDir => pick(lang, "(empty)", "(leer)", "(vacío)", "(vide)", "(пусто)", "(vazio)"),
+        Key::NoFileChosen => pick(lang, "no file chosen", "keine Datei gewählt", "ningún archivo elegido", "aucun fichier choisi", "файл не выбран", "nenhum arquivo escolhido"),
+    }
+}
+
+/// Translate a UI string keyed by its own English text.
+///
+/// This complements [`t`] for the long tail of strings that do not warrant a
+/// dedicated [`Key`]: status lines, hints, validation messages, and the
+/// informational sections. English returns the literal unchanged; every other
+/// language looks it up and, if there is no entry, falls back to the English
+/// literal so nothing is ever blank. Templates keep their `{placeholder}`
+/// tokens verbatim in every language, so the caller can `.replace()` them.
+pub fn tr(lang: Lang, en: &'static str) -> &'static str {
+    if lang == Lang::En {
+        return en;
+    }
+    match en {
+        // ---- app.rs: status lines ----
+        "Deriving keys..." => pick(
+            lang,
+            en,
+            "Schlüssel werden abgeleitet…",
+            "Derivando claves…",
+            "Dérivation des clés…",
+            "Вывод ключей…",
+            "Derivando chaves…",
+        ),
+        "Trying {prf} ({i}/{n})..." => pick(
+            lang,
+            en,
+            "{prf} wird versucht ({i}/{n})…",
+            "Probando {prf} ({i}/{n})…",
+            "Essai de {prf} ({i}/{n})…",
+            "Проверка {prf} ({i}/{n})…",
+            "Tentando {prf} ({i}/{n})…",
+        ),
+        "Unlocked. {scheme} / {prf}." => pick(
+            lang,
+            en,
+            "Entsperrt. {scheme} / {prf}.",
+            "Desbloqueado. {scheme} / {prf}.",
+            "Déverrouillé. {scheme} / {prf}.",
+            "Разблокировано. {scheme} / {prf}.",
+            "Desbloqueado. {scheme} / {prf}.",
+        ),
+        "Could not unlock: {e}" => pick(
+            lang,
+            en,
+            "Entsperren fehlgeschlagen: {e}",
+            "No se pudo desbloquear: {e}",
+            "Échec du déverrouillage : {e}",
+            "Не удалось разблокировать: {e}",
+            "Não foi possível desbloquear: {e}",
+        ),
+        "Created {name}." => pick(
+            lang,
+            en,
+            "{name} erstellt.",
+            "Creado {name}.",
+            "Créé {name}.",
+            "Создано {name}.",
+            "Criado {name}.",
+        ),
+        "Ready to unlock {name}." => pick(
+            lang,
+            en,
+            "Bereit, {name} zu entsperren.",
+            "Listo para desbloquear {name}.",
+            "Prêt à déverrouiller {name}.",
+            "Готово к разблокировке {name}.",
+            "Pronto para desbloquear {name}.",
+        ),
+        "Could not create: {e}" => pick(
+            lang,
+            en,
+            "Erstellen fehlgeschlagen: {e}",
+            "No se pudo crear: {e}",
+            "Échec de la création : {e}",
+            "Не удалось создать: {e}",
+            "Não foi possível criar: {e}",
+        ),
+        "Auto-locked after inactivity." => pick(
+            lang,
+            en,
+            "Nach Inaktivität automatisch gesperrt.",
+            "Bloqueado automáticamente por inactividad.",
+            "Verrouillé automatiquement après inactivité.",
+            "Автоматически заблокировано из-за бездействия.",
+            "Bloqueado automaticamente por inatividade.",
+        ),
+        "Locked." => pick(
+            lang,
+            en,
+            "Gesperrt.",
+            "Bloqueado.",
+            "Verrouillé.",
+            "Заблокировано.",
+            "Bloqueado.",
+        ),
+        "Unmounted." => pick(
+            lang,
+            en,
+            "Ausgehängt.",
+            "Desmontado.",
+            "Démonté.",
+            "Отключено.",
+            "Desmontado.",
+        ),
+        "Mounted at {path}" => pick(
+            lang,
+            en,
+            "Eingehängt unter {path}",
+            "Montado en {path}",
+            "Monté sur {path}",
+            "Подключено в {path}",
+            "Montado em {path}",
+        ),
+        "Mount failed: {e}. Unlock again to retry." => pick(
+            lang,
+            en,
+            "Einhängen fehlgeschlagen: {e}. Zum Wiederholen erneut entsperren.",
+            "Fallo al montar: {e}. Desbloquea de nuevo para reintentar.",
+            "Échec du montage : {e}. Déverrouillez à nouveau pour réessayer.",
+            "Не удалось подключить: {e}. Разблокируйте снова, чтобы повторить.",
+            "Falha ao montar: {e}. Desbloqueie novamente para tentar.",
+        ),
+        "Choose a container file first." => pick(
+            lang,
+            en,
+            "Wähle zuerst eine Container-Datei.",
+            "Elige primero un archivo contenedor.",
+            "Choisissez d'abord un fichier conteneur.",
+            "Сначала выберите файл контейнера.",
+            "Escolha primeiro um arquivo contêiner.",
+        ),
+        "Contents hidden while the window is not focused." => pick(
+            lang,
+            en,
+            "Inhalt verborgen, solange das Fenster nicht im Fokus ist.",
+            "Contenido oculto mientras la ventana no está enfocada.",
+            "Contenu masqué lorsque la fenêtre n'est pas au premier plan.",
+            "Содержимое скрыто, пока окно не в фокусе.",
+            "Conteúdo oculto enquanto a janela não está em foco.",
+        ),
+
+        // ---- theme choice labels ----
+        "Light" => pick(lang, en, "Hell", "Claro", "Clair", "Светлая", "Claro"),
+        "Dark" => pick(lang, en, "Dunkel", "Oscuro", "Sombre", "Тёмная", "Escuro"),
+        "Auto" => pick(lang, en, "Auto", "Auto", "Auto", "Авто", "Automático"),
+
+        // ---- volumes.rs ----
+        "Open the mount point in Finder to use the volume. It is mounted read-only." => pick(
+            lang,
+            en,
+            "Öffne den Einhängepunkt im Finder, um das Volume zu nutzen. Es ist schreibgeschützt eingehängt.",
+            "Abre el punto de montaje en el Finder para usar el volumen. Está montado como solo lectura.",
+            "Ouvrez le point de montage dans le Finder pour utiliser le volume. Il est monté en lecture seule.",
+            "Откройте точку подключения в Finder, чтобы использовать том. Он подключён только для чтения.",
+            "Abra o ponto de montagem no Finder para usar o volume. Ele está montado como somente leitura.",
+        ),
+        "A write that would hit the hidden region is refused." => pick(
+            lang,
+            en,
+            "Ein Schreibvorgang, der den versteckten Bereich träfe, wird abgelehnt.",
+            "Se rechaza toda escritura que alcanzaría la región oculta.",
+            "Toute écriture atteignant la région cachée est refusée.",
+            "Запись, затрагивающая скрытую область, отклоняется.",
+            "Uma gravação que atingiria a região oculta é recusada.",
+        ),
+        "Hidden-volume protection is on: writes into the hidden region are refused." => pick(
+            lang,
+            en,
+            "Schutz des versteckten Volumes ist aktiv: Schreibvorgänge in den versteckten Bereich werden abgelehnt.",
+            "La protección del volumen oculto está activa: se rechazan las escrituras en la región oculta.",
+            "La protection du volume caché est active : les écritures dans la région cachée sont refusées.",
+            "Защита скрытого тома включена: запись в скрытую область отклоняется.",
+            "A proteção do volume oculto está ativa: gravações na região oculta são recusadas.",
+        ),
+
+        // ---- files.rs ----
+        "Open a volume on the Volumes tab to browse its files." => pick(
+            lang,
+            en,
+            "Öffne ein Volume im Tab Volumes, um seine Dateien zu durchsuchen.",
+            "Abre un volumen en la pestaña Volúmenes para explorar sus archivos.",
+            "Ouvrez un volume dans l'onglet Volumes pour parcourir ses fichiers.",
+            "Откройте том на вкладке «Тома», чтобы просмотреть его файлы.",
+            "Abra um volume na aba Volumes para navegar pelos seus arquivos.",
+        ),
+        "new folder" => pick(
+            lang,
+            en,
+            "neuer Ordner",
+            "nueva carpeta",
+            "nouveau dossier",
+            "новая папка",
+            "nova pasta",
+        ),
+        "Cannot list: {err}" => pick(
+            lang,
+            en,
+            "Auflisten nicht möglich: {err}",
+            "No se puede listar: {err}",
+            "Impossible de lister : {err}",
+            "Не удалось получить список: {err}",
+            "Não é possível listar: {err}",
+        ),
+        "Added {name} ({size})" => pick(
+            lang,
+            en,
+            "{name} hinzugefügt ({size})",
+            "Añadido {name} ({size})",
+            "Ajouté {name} ({size})",
+            "Добавлено {name} ({size})",
+            "Adicionado {name} ({size})",
+        ),
+        "Enter a folder name first." => pick(
+            lang,
+            en,
+            "Gib zuerst einen Ordnernamen ein.",
+            "Introduce primero un nombre de carpeta.",
+            "Saisissez d'abord un nom de dossier.",
+            "Сначала введите имя папки.",
+            "Digite primeiro um nome de pasta.",
+        ),
+        "Created {name}/" => pick(
+            lang,
+            en,
+            "{name}/ erstellt",
+            "Creada {name}/",
+            "Créé {name}/",
+            "Создано {name}/",
+            "Criada {name}/",
+        ),
+        "Extracted {n} file(s) to {path}" => pick(
+            lang,
+            en,
+            "{n} Datei(en) nach {path} entpackt",
+            "Extraído(s) {n} archivo(s) a {path}",
+            "{n} fichier(s) extrait(s) vers {path}",
+            "Извлечено файлов: {n} в {path}",
+            "Extraído(s) {n} arquivo(s) para {path}",
+        ),
+        "Deleted {name}" => pick(
+            lang,
+            en,
+            "{name} gelöscht",
+            "Eliminado {name}",
+            "Supprimé {name}",
+            "Удалено {name}",
+            "Excluído {name}",
+        ),
+        "Error: {e}" => pick(
+            lang,
+            en,
+            "Fehler: {e}",
+            "Error: {e}",
+            "Erreur : {e}",
+            "Ошибка: {e}",
+            "Erro: {e}",
+        ),
+
+        // ---- create.rs ----
+        "Choose location..." => pick(
+            lang,
+            en,
+            "Speicherort wählen…",
+            "Elegir ubicación…",
+            "Choisir l'emplacement…",
+            "Выбрать расположение…",
+            "Escolher local…",
+        ),
+        "no location chosen" => pick(
+            lang,
+            en,
+            "kein Speicherort gewählt",
+            "ninguna ubicación elegida",
+            "aucun emplacement choisi",
+            "расположение не выбрано",
+            "nenhum local escolhido",
+        ),
+        "FAT is universal; exFAT lifts the 4 GiB per-file limit (read-only in-app until the core's exFAT write lands)." => pick(
+            lang,
+            en,
+            "FAT ist universell; exFAT hebt das 4-GiB-Limit pro Datei auf (in der App schreibgeschützt, bis der exFAT-Schreibzugriff im Core verfügbar ist).",
+            "FAT es universal; exFAT elimina el límite de 4 GiB por archivo (solo lectura en la app hasta que llegue la escritura exFAT del núcleo).",
+            "FAT est universel ; exFAT supprime la limite de 4 Gio par fichier (lecture seule dans l'app jusqu'à l'arrivée de l'écriture exFAT du cœur).",
+            "FAT универсален; exFAT снимает ограничение в 4 ГиБ на файл (в приложении только для чтения, пока не появится запись exFAT в ядре).",
+            "FAT é universal; exFAT elimina o limite de 4 GiB por arquivo (somente leitura no app até a gravação exFAT chegar ao núcleo).",
+        ),
+        "blank or 0 uses the default iteration schedule" => pick(
+            lang,
+            en,
+            "leer oder 0 verwendet den Standard-Iterationsplan",
+            "vacío o 0 usa el calendario de iteraciones por defecto",
+            "vide ou 0 utilise le calendrier d'itérations par défaut",
+            "пусто или 0 использует стандартное расписание итераций",
+            "vazio ou 0 usa o cronograma de iterações padrão",
+        ),
+        "Add keyfile..." => pick(
+            lang,
+            en,
+            "Schlüsseldatei hinzufügen…",
+            "Añadir archivo de clave…",
+            "Ajouter un fichier-clé…",
+            "Добавить файл-ключ…",
+            "Adicionar arquivo-chave…",
+        ),
+        "Clear keyfiles" => pick(
+            lang,
+            en,
+            "Schlüsseldateien entfernen",
+            "Quitar archivos de clave",
+            "Effacer les fichiers-clés",
+            "Очистить файлы-ключи",
+            "Limpar arquivos-chave",
+        ),
+        "{n} keyfile(s)" => pick(
+            lang,
+            en,
+            "{n} Schlüsseldatei(en)",
+            "{n} archivo(s) de clave",
+            "{n} fichier(s)-clé",
+            "Файлов-ключей: {n}",
+            "{n} arquivo(s)-chave",
+        ),
+        "Reuses the cipher, hash, and filesystem above. It gets its own passphrase, PIM, and size, and must use a different passphrase from the outer volume." => pick(
+            lang,
+            en,
+            "Verwendet Verschlüsselung, Hash und Dateisystem von oben. Es erhält eigenes Passwort, PIM und Größe und muss ein anderes Passwort als das äußere Volume verwenden.",
+            "Reutiliza el cifrado, el hash y el sistema de archivos de arriba. Tiene su propia contraseña, PIM y tamaño, y debe usar una contraseña distinta a la del volumen externo.",
+            "Réutilise le chiffrement, le hachage et le système de fichiers ci-dessus. Il a son propre mot de passe, PIM et taille, et doit utiliser un mot de passe différent du volume externe.",
+            "Использует шифрование, хеш и файловую систему, указанные выше. У него свои пароль, PIM и размер, и он должен использовать пароль, отличный от внешнего тома.",
+            "Reutiliza a cifra, o hash e o sistema de arquivos acima. Tem a própria senha, PIM e tamanho, e deve usar uma senha diferente da do volume externo.",
+        ),
+        "Hidden size" => pick(
+            lang,
+            en,
+            "Versteckte Größe",
+            "Tamaño oculto",
+            "Taille cachée",
+            "Скрытый размер",
+            "Tamanho oculto",
+        ),
+        "Hidden PIM" => pick(
+            lang,
+            en,
+            "Verstecktes PIM",
+            "PIM oculto",
+            "PIM caché",
+            "Скрытый PIM",
+            "PIM oculto",
+        ),
+        "Creating..." => pick(
+            lang,
+            en,
+            "Wird erstellt…",
+            "Creando…",
+            "Création…",
+            "Создание…",
+            "Criando…",
+        ),
+        "Choose where to save the container first." => pick(
+            lang,
+            en,
+            "Wähle zuerst, wo der Container gespeichert werden soll.",
+            "Elige primero dónde guardar el contenedor.",
+            "Choisissez d'abord où enregistrer le conteneur.",
+            "Сначала выберите, куда сохранить контейнер.",
+            "Escolha primeiro onde salvar o contêiner.",
+        ),
+        "Enter a valid size." => pick(
+            lang,
+            en,
+            "Gib eine gültige Größe ein.",
+            "Introduce un tamaño válido.",
+            "Saisissez une taille valide.",
+            "Введите допустимый размер.",
+            "Digite um tamanho válido.",
+        ),
+        "Container must be at least 1 MiB." => pick(
+            lang,
+            en,
+            "Der Container muss mindestens 1 MiB groß sein.",
+            "El contenedor debe tener al menos 1 MiB.",
+            "Le conteneur doit faire au moins 1 Mio.",
+            "Контейнер должен быть не меньше 1 МиБ.",
+            "O contêiner deve ter pelo menos 1 MiB.",
+        ),
+        "Passphrases do not match." => pick(
+            lang,
+            en,
+            "Passwörter stimmen nicht überein.",
+            "Las contraseñas no coinciden.",
+            "Les mots de passe ne correspondent pas.",
+            "Пароли не совпадают.",
+            "As senhas não coincidem.",
+        ),
+        "Set a passphrase or add at least one keyfile." => pick(
+            lang,
+            en,
+            "Lege ein Passwort fest oder füge mindestens eine Schlüsseldatei hinzu.",
+            "Establece una contraseña o añade al menos un archivo de clave.",
+            "Définissez un mot de passe ou ajoutez au moins un fichier-clé.",
+            "Задайте пароль или добавьте хотя бы один файл-ключ.",
+            "Defina uma senha ou adicione ao menos um arquivo-chave.",
+        ),
+        "Unknown cipher: {name}" => pick(
+            lang,
+            en,
+            "Unbekannte Verschlüsselung: {name}",
+            "Cifrado desconocido: {name}",
+            "Chiffrement inconnu : {name}",
+            "Неизвестное шифрование: {name}",
+            "Cifra desconhecida: {name}",
+        ),
+        "Unknown hash: {name}" => pick(
+            lang,
+            en,
+            "Unbekannter Hash: {name}",
+            "Hash desconocido: {name}",
+            "Hachage inconnu : {name}",
+            "Неизвестный хеш: {name}",
+            "Hash desconhecido: {name}",
+        ),
+        "Enter a valid hidden-volume size." => pick(
+            lang,
+            en,
+            "Gib eine gültige Größe für das versteckte Volume ein.",
+            "Introduce un tamaño válido para el volumen oculto.",
+            "Saisissez une taille valide pour le volume caché.",
+            "Введите допустимый размер скрытого тома.",
+            "Digite um tamanho válido para o volume oculto.",
+        ),
+        "The hidden volume must be smaller than the container." => pick(
+            lang,
+            en,
+            "Das versteckte Volume muss kleiner als der Container sein.",
+            "El volumen oculto debe ser más pequeño que el contenedor.",
+            "Le volume caché doit être plus petit que le conteneur.",
+            "Скрытый том должен быть меньше контейнера.",
+            "O volume oculto deve ser menor que o contêiner.",
+        ),
+        "Hidden passphrases do not match." => pick(
+            lang,
+            en,
+            "Versteckte Passwörter stimmen nicht überein.",
+            "Las contraseñas ocultas no coinciden.",
+            "Les mots de passe cachés ne correspondent pas.",
+            "Скрытые пароли не совпадают.",
+            "As senhas ocultas não coincidem.",
+        ),
+        "Set a passphrase for the hidden volume." => pick(
+            lang,
+            en,
+            "Lege ein Passwort für das versteckte Volume fest.",
+            "Establece una contraseña para el volumen oculto.",
+            "Définissez un mot de passe pour le volume caché.",
+            "Задайте пароль для скрытого тома.",
+            "Defina uma senha para o volume oculto.",
+        ),
+        "The hidden volume must use a different passphrase from the outer volume." => pick(
+            lang,
+            en,
+            "Das versteckte Volume muss ein anderes Passwort als das äußere Volume verwenden.",
+            "El volumen oculto debe usar una contraseña distinta a la del volumen externo.",
+            "Le volume caché doit utiliser un mot de passe différent du volume externe.",
+            "Скрытый том должен использовать пароль, отличный от внешнего тома.",
+            "O volume oculto deve usar uma senha diferente da do volume externo.",
+        ),
+
+        // ---- tools.rs ----
+        "Choose container..." => pick(
+            lang,
+            en,
+            "Container wählen…",
+            "Elegir contenedor…",
+            "Choisir un conteneur…",
+            "Выбрать контейнер…",
+            "Escolher contêiner…",
+        ),
+        "no container chosen" => pick(
+            lang,
+            en,
+            "kein Container gewählt",
+            "ningún contenedor elegido",
+            "aucun conteneur choisi",
+            "контейнер не выбран",
+            "nenhum contêiner escolhido",
+        ),
+        "Choose a container to use the header tools." => pick(
+            lang,
+            en,
+            "Wähle einen Container, um die Header-Werkzeuge zu nutzen.",
+            "Elige un contenedor para usar las herramientas de encabezado.",
+            "Choisissez un conteneur pour utiliser les outils d'en-tête.",
+            "Выберите контейнер, чтобы использовать инструменты заголовка.",
+            "Escolha um contêiner para usar as ferramentas de cabeçalho.",
+        ),
+        "A volume is open. Lock it before restoring or changing headers." => pick(
+            lang,
+            en,
+            "Ein Volume ist geöffnet. Sperre es, bevor du Header wiederherstellst oder änderst.",
+            "Hay un volumen abierto. Bloquéalo antes de restaurar o cambiar encabezados.",
+            "Un volume est ouvert. Verrouillez-le avant de restaurer ou de modifier les en-têtes.",
+            "Том открыт. Заблокируйте его перед восстановлением или изменением заголовков.",
+            "Há um volume aberto. Bloqueie-o antes de restaurar ou alterar cabeçalhos.",
+        ),
+        "Working..." => pick(
+            lang,
+            en,
+            "Arbeitet…",
+            "Trabajando…",
+            "En cours…",
+            "Выполняется…",
+            "Trabalhando…",
+        ),
+        "Backed up header to {path}" => pick(
+            lang,
+            en,
+            "Header nach {path} gesichert",
+            "Encabezado respaldado en {path}",
+            "En-tête sauvegardé vers {path}",
+            "Заголовок сохранён в {path}",
+            "Cabeçalho salvo em {path}",
+        ),
+        "A header backup keeps accepting the current password even after a password change. Store it as carefully as the container itself." => pick(
+            lang,
+            en,
+            "Eine Header-Sicherung akzeptiert das aktuelle Passwort auch nach einer Passwortänderung weiter. Bewahre sie so sorgfältig auf wie den Container selbst.",
+            "Una copia del encabezado sigue aceptando la contraseña actual incluso tras un cambio de contraseña. Guárdala con el mismo cuidado que el contenedor.",
+            "Une sauvegarde d'en-tête continue d'accepter le mot de passe actuel même après un changement de mot de passe. Conservez-la avec autant de soin que le conteneur lui-même.",
+            "Резервная копия заголовка продолжает принимать текущий пароль даже после его смены. Храните её так же бережно, как сам контейнер.",
+            "Um backup do cabeçalho continua aceitando a senha atual mesmo após uma troca de senha. Guarde-o com o mesmo cuidado que o contêiner.",
+        ),
+        "Restored the primary header from the backup file." => pick(
+            lang,
+            en,
+            "Primärer Header aus der Sicherungsdatei wiederhergestellt.",
+            "Se restauró el encabezado principal desde el archivo de copia.",
+            "En-tête principal restauré depuis le fichier de sauvegarde.",
+            "Основной заголовок восстановлен из файла резервной копии.",
+            "Cabeçalho principal restaurado a partir do arquivo de backup.",
+        ),
+        "Restored the primary header from the embedded backup." => pick(
+            lang,
+            en,
+            "Primärer Header aus der eingebetteten Sicherung wiederhergestellt.",
+            "Se restauró el encabezado principal desde la copia incorporada.",
+            "En-tête principal restauré depuis la sauvegarde intégrée.",
+            "Основной заголовок восстановлен из встроенной резервной копии.",
+            "Cabeçalho principal restaurado a partir do backup incorporado.",
+        ),
+        "Restore verifies the replacement header unlocks with the passphrase above before writing anything." => pick(
+            lang,
+            en,
+            "Beim Wiederherstellen wird geprüft, ob der Ersatz-Header mit dem Passwort oben entsperrt, bevor etwas geschrieben wird.",
+            "La restauración comprueba que el encabezado de reemplazo se desbloquea con la contraseña de arriba antes de escribir nada.",
+            "La restauration vérifie que l'en-tête de remplacement se déverrouille avec le mot de passe ci-dessus avant d'écrire quoi que ce soit.",
+            "Восстановление проверяет, что заменяющий заголовок открывается паролем выше, прежде чем что-либо записать.",
+            "A restauração verifica se o cabeçalho de substituição desbloqueia com a senha acima antes de gravar qualquer coisa.",
+        ),
+        "The passphrase and PIM above are the current (old) secret." => pick(
+            lang,
+            en,
+            "Passwort und PIM oben sind das aktuelle (alte) Geheimnis.",
+            "La contraseña y el PIM de arriba son el secreto actual (antiguo).",
+            "Le mot de passe et le PIM ci-dessus sont le secret actuel (ancien).",
+            "Пароль и PIM выше — это текущий (старый) секрет.",
+            "A senha e o PIM acima são o segredo atual (antigo).",
+        ),
+        "New passphrase" => pick(
+            lang,
+            en,
+            "Neues Passwort",
+            "Nueva contraseña",
+            "Nouveau mot de passe",
+            "Новый пароль",
+            "Nova senha",
+        ),
+        "New PIM" => pick(
+            lang,
+            en,
+            "Neues PIM",
+            "Nuevo PIM",
+            "Nouveau PIM",
+            "Новый PIM",
+            "Novo PIM",
+        ),
+        "New passphrases do not match." => pick(
+            lang,
+            en,
+            "Neue Passwörter stimmen nicht überein.",
+            "Las nuevas contraseñas no coinciden.",
+            "Les nouveaux mots de passe ne correspondent pas.",
+            "Новые пароли не совпадают.",
+            "As novas senhas não coincidem.",
+        ),
+        "Enter a new passphrase." => pick(
+            lang,
+            en,
+            "Gib ein neues Passwort ein.",
+            "Introduce una nueva contraseña.",
+            "Saisissez un nouveau mot de passe.",
+            "Введите новый пароль.",
+            "Digite uma nova senha.",
+        ),
+        "Password changed. Use the new passphrase from now on." => pick(
+            lang,
+            en,
+            "Passwort geändert. Verwende ab jetzt das neue Passwort.",
+            "Contraseña cambiada. Usa la nueva contraseña a partir de ahora.",
+            "Mot de passe changé. Utilisez le nouveau mot de passe désormais.",
+            "Пароль изменён. Используйте новый пароль с этого момента.",
+            "Senha alterada. Use a nova senha a partir de agora.",
+        ),
+
+        // ---- settings.rs: appearance / privacy ----
+        "Auto follows the system. The choice is remembered." => pick(
+            lang,
+            en,
+            "Auto folgt dem System. Die Wahl wird gespeichert.",
+            "Auto sigue al sistema. La elección se recuerda.",
+            "Auto suit le système. Le choix est mémorisé.",
+            "«Авто» следует за системой. Выбор запоминается.",
+            "Automático segue o sistema. A escolha é lembrada.",
+        ),
+        "Lock after" => pick(
+            lang,
+            en,
+            "Sperren nach",
+            "Bloquear tras",
+            "Verrouiller après",
+            "Блокировать через",
+            "Bloquear após",
+        ),
+        "minutes of inactivity" => pick(
+            lang,
+            en,
+            "Minuten Inaktivität",
+            "minutos de inactividad",
+            "minutes d'inactivité",
+            "минут бездействия",
+            "minutos de inatividade",
+        ),
+        "0 disables it. Locking unmounts any mounted drive and zeroizes the keys." => pick(
+            lang,
+            en,
+            "0 deaktiviert dies. Beim Sperren wird jedes eingehängte Laufwerk ausgehängt und die Schlüssel werden genullt.",
+            "0 lo desactiva. Bloquear desmonta cualquier unidad montada y pone las claves a cero.",
+            "0 le désactive. Le verrouillage démonte tout lecteur monté et met les clés à zéro.",
+            "0 отключает это. Блокировка отключает подключённые диски и обнуляет ключи.",
+            "0 desativa. Bloquear desmonta qualquer unidade montada e zera as chaves.",
+        ),
+        "OS-native unlock (Touch ID / Windows Hello) is planned; it needs platform framework integration." => pick(
+            lang,
+            en,
+            "Betriebssystem-eigenes Entsperren (Touch ID / Windows Hello) ist geplant; es erfordert die Integration des Plattform-Frameworks.",
+            "El desbloqueo nativo del sistema (Touch ID / Windows Hello) está previsto; requiere integración con el framework de la plataforma.",
+            "Le déverrouillage natif du système (Touch ID / Windows Hello) est prévu ; il nécessite l'intégration du framework de la plateforme.",
+            "Разблокировка средствами ОС (Touch ID / Windows Hello) запланирована; для неё нужна интеграция с платформенным фреймворком.",
+            "O desbloqueio nativo do sistema (Touch ID / Windows Hello) está planejado; requer integração com o framework da plataforma.",
+        ),
+
+        // ---- settings.rs: about ----
+        "Open and edit VeraCrypt-compatible encrypted containers, entirely on this computer. No accounts, no telemetry, no network access." => pick(
+            lang,
+            en,
+            "Öffne und bearbeite VeraCrypt-kompatible verschlüsselte Container, vollständig auf diesem Computer. Keine Konten, keine Telemetrie, kein Netzwerkzugriff.",
+            "Abre y edita contenedores cifrados compatibles con VeraCrypt, íntegramente en este equipo. Sin cuentas, sin telemetría, sin acceso a la red.",
+            "Ouvrez et modifiez des conteneurs chiffrés compatibles VeraCrypt, entièrement sur cet ordinateur. Aucun compte, aucune télémétrie, aucun accès réseau.",
+            "Открывайте и редактируйте зашифрованные контейнеры, совместимые с VeraCrypt, полностью на этом компьютере. Без учётных записей, без телеметрии, без доступа к сети.",
+            "Abra e edite contêineres criptografados compatíveis com o VeraCrypt, inteiramente neste computador. Sem contas, sem telemetria, sem acesso à rede.",
+        ),
+        "Source (VaultPonyDesktop)" => pick(
+            lang,
+            en,
+            "Quellcode (VaultPonyDesktop)",
+            "Código fuente (VaultPonyDesktop)",
+            "Code source (VaultPonyDesktop)",
+            "Исходный код (VaultPonyDesktop)",
+            "Código-fonte (VaultPonyDesktop)",
+        ),
+        "Source (VaultPonyCore)" => pick(
+            lang,
+            en,
+            "Quellcode (VaultPonyCore)",
+            "Código fuente (VaultPonyCore)",
+            "Code source (VaultPonyCore)",
+            "Исходный код (VaultPonyCore)",
+            "Código-fonte (VaultPonyCore)",
+        ),
+        "Apache-2.0. VeraCrypt is a trademark of IDRIX; VaultPony is not affiliated with IDRIX." => pick(
+            lang,
+            en,
+            "Apache-2.0. VeraCrypt ist eine Marke von IDRIX; VaultPony ist nicht mit IDRIX verbunden.",
+            "Apache-2.0. VeraCrypt es una marca de IDRIX; VaultPony no está afiliado a IDRIX.",
+            "Apache-2.0. VeraCrypt est une marque d'IDRIX ; VaultPony n'est pas affilié à IDRIX.",
+            "Apache-2.0. VeraCrypt — торговая марка IDRIX; VaultPony не связан с IDRIX.",
+            "Apache-2.0. VeraCrypt é uma marca da IDRIX; o VaultPony não é afiliado à IDRIX.",
+        ),
+
+        // ---- settings.rs: help FAQ ----
+        "What is a container?" => pick(
+            lang,
+            en,
+            "Was ist ein Container?",
+            "¿Qué es un contenedor?",
+            "Qu'est-ce qu'un conteneur ?",
+            "Что такое контейнер?",
+            "O que é um contêiner?",
+        ),
+        "A container is a single encrypted file. Open it with your passphrase and it behaves like a small disk you can put files inside. VaultPony's containers are VeraCrypt-compatible, so desktop VeraCrypt opens what VaultPony makes, and the reverse." => pick(
+            lang,
+            en,
+            "Ein Container ist eine einzelne verschlüsselte Datei. Öffne sie mit deinem Passwort und sie verhält sich wie eine kleine Festplatte, in die du Dateien legen kannst. VaultPonys Container sind VeraCrypt-kompatibel, sodass Desktop-VeraCrypt öffnet, was VaultPony erstellt, und umgekehrt.",
+            "Un contenedor es un único archivo cifrado. Ábrelo con tu contraseña y se comporta como un pequeño disco en el que puedes guardar archivos. Los contenedores de VaultPony son compatibles con VeraCrypt, así que VeraCrypt de escritorio abre lo que crea VaultPony, y al revés.",
+            "Un conteneur est un unique fichier chiffré. Ouvrez-le avec votre mot de passe et il se comporte comme un petit disque dans lequel ranger des fichiers. Les conteneurs de VaultPony sont compatibles VeraCrypt : VeraCrypt pour ordinateur ouvre ce que crée VaultPony, et inversement.",
+            "Контейнер — это один зашифрованный файл. Откройте его паролем, и он ведёт себя как маленький диск, куда можно класть файлы. Контейнеры VaultPony совместимы с VeraCrypt, поэтому настольный VeraCrypt открывает созданное VaultPony, и наоборот.",
+            "Um contêiner é um único arquivo criptografado. Abra-o com sua senha e ele se comporta como um pequeno disco onde você guarda arquivos. Os contêineres do VaultPony são compatíveis com o VeraCrypt, então o VeraCrypt de desktop abre o que o VaultPony cria, e vice-versa.",
+        ),
+        "What is a hidden volume?" => pick(
+            lang,
+            en,
+            "Was ist ein verstecktes Volume?",
+            "¿Qué es un volumen oculto?",
+            "Qu'est-ce qu'un volume caché ?",
+            "Что такое скрытый том?",
+            "O que é um volume oculto?",
+        ),
+        "A second container concealed inside the free space of the first. It has its own password, and the outer volume gives no sign the hidden one exists. Which volume opens is decided by the password you type; there is no toggle to reveal it." => pick(
+            lang,
+            en,
+            "Ein zweiter Container, verborgen im freien Speicher des ersten. Er hat ein eigenes Passwort, und das äußere Volume gibt keinen Hinweis auf die Existenz des versteckten. Welches Volume sich öffnet, entscheidet das eingegebene Passwort; es gibt keinen Schalter, um es aufzudecken.",
+            "Un segundo contenedor oculto en el espacio libre del primero. Tiene su propia contraseña, y el volumen externo no da ninguna señal de que el oculto exista. Qué volumen se abre lo decide la contraseña que escribes; no hay ningún interruptor para revelarlo.",
+            "Un second conteneur dissimulé dans l'espace libre du premier. Il a son propre mot de passe, et le volume externe ne donne aucun signe de l'existence du volume caché. Le volume qui s'ouvre dépend du mot de passe saisi ; aucun bouton ne permet de le révéler.",
+            "Второй контейнер, скрытый в свободном пространстве первого. У него свой пароль, и внешний том никак не выдаёт существование скрытого. Какой том откроется, решает введённый пароль; переключателя для его раскрытия нет.",
+            "Um segundo contêiner oculto no espaço livre do primeiro. Ele tem a própria senha, e o volume externo não dá nenhum sinal de que o oculto existe. Qual volume abre é decidido pela senha que você digita; não há interruptor para revelá-lo.",
+        ),
+        "What is a keyfile, and what is PIM?" => pick(
+            lang,
+            en,
+            "Was ist eine Schlüsseldatei und was ist PIM?",
+            "¿Qué es un archivo de clave y qué es el PIM?",
+            "Qu'est-ce qu'un fichier-clé et qu'est-ce que le PIM ?",
+            "Что такое файл-ключ и что такое PIM?",
+            "O que é um arquivo-chave e o que é PIM?",
+        ),
+        "A keyfile is any file folded into your passphrase, so opening the container needs both. PIM is a number that tunes how long key derivation takes; leave it blank for the default. Both must match what the container was created with." => pick(
+            lang,
+            en,
+            "Eine Schlüsseldatei ist eine beliebige Datei, die mit deinem Passwort verknüpft wird, sodass zum Öffnen des Containers beides nötig ist. PIM ist eine Zahl, die einstellt, wie lange die Schlüsselableitung dauert; für den Standard leer lassen. Beide müssen mit dem übereinstimmen, womit der Container erstellt wurde.",
+            "Un archivo de clave es cualquier archivo combinado con tu contraseña, de modo que abrir el contenedor requiere ambos. El PIM es un número que ajusta cuánto tarda la derivación de claves; déjalo vacío para el valor por defecto. Ambos deben coincidir con los usados al crear el contenedor.",
+            "Un fichier-clé est un fichier quelconque combiné à votre mot de passe : ouvrir le conteneur exige les deux. Le PIM est un nombre qui règle la durée de dérivation des clés ; laissez-le vide pour la valeur par défaut. Les deux doivent correspondre à ceux utilisés à la création du conteneur.",
+            "Файл-ключ — это любой файл, объединённый с вашим паролем, поэтому для открытия контейнера нужны оба. PIM — число, задающее длительность вывода ключа; оставьте пустым для значения по умолчанию. Оба должны совпадать с теми, с которыми создавался контейнер.",
+            "Um arquivo-chave é qualquer arquivo combinado à sua senha, de modo que abrir o contêiner exige os dois. O PIM é um número que ajusta quanto tempo leva a derivação de chaves; deixe em branco para o padrão. Ambos devem coincidir com os usados na criação do contêiner.",
+        ),
+        "Can VeraCrypt open these containers?" => pick(
+            lang,
+            en,
+            "Kann VeraCrypt diese Container öffnen?",
+            "¿Puede VeraCrypt abrir estos contenedores?",
+            "VeraCrypt peut-il ouvrir ces conteneurs ?",
+            "Может ли VeraCrypt открывать эти контейнеры?",
+            "O VeraCrypt consegue abrir esses contêineres?",
+        ),
+        "Yes. VaultPony writes the VeraCrypt volume format, so desktop VeraCrypt and other compatible tools open containers VaultPony creates, with the matching password." => pick(
+            lang,
+            en,
+            "Ja. VaultPony schreibt das VeraCrypt-Volume-Format, sodass Desktop-VeraCrypt und andere kompatible Werkzeuge von VaultPony erstellte Container mit dem passenden Passwort öffnen.",
+            "Sí. VaultPony escribe el formato de volumen de VeraCrypt, así que VeraCrypt de escritorio y otras herramientas compatibles abren los contenedores que crea VaultPony, con la contraseña correspondiente.",
+            "Oui. VaultPony écrit le format de volume VeraCrypt, si bien que VeraCrypt pour ordinateur et d'autres outils compatibles ouvrent les conteneurs créés par VaultPony, avec le mot de passe correspondant.",
+            "Да. VaultPony записывает формат тома VeraCrypt, поэтому настольный VeraCrypt и другие совместимые программы открывают созданные VaultPony контейнеры с соответствующим паролем.",
+            "Sim. O VaultPony grava o formato de volume do VeraCrypt, então o VeraCrypt de desktop e outras ferramentas compatíveis abrem os contêineres que o VaultPony cria, com a senha correspondente.",
+        ),
+        "What does mounting do?" => pick(
+            lang,
+            en,
+            "Was bewirkt das Einhängen?",
+            "¿Qué hace el montaje?",
+            "À quoi sert le montage ?",
+            "Что делает подключение?",
+            "O que a montagem faz?",
+        ),
+        "Mounting presents an open container to your system as a real drive your other apps can browse. It needs macFUSE installed and a build with the mount feature; without it, the Files tab browses the container inside the app." => pick(
+            lang,
+            en,
+            "Beim Einhängen wird ein geöffneter Container dem System als echtes Laufwerk präsentiert, das deine anderen Apps durchsuchen können. Es benötigt installiertes macFUSE und eine Version mit der Einhänge-Funktion; ohne sie durchsucht der Tab Dateien den Container innerhalb der App.",
+            "El montaje presenta un contenedor abierto al sistema como una unidad real que tus otras apps pueden explorar. Requiere macFUSE instalado y una versión con la función de montaje; sin ella, la pestaña Archivos explora el contenedor dentro de la app.",
+            "Le montage présente un conteneur ouvert au système comme un véritable lecteur que vos autres applications peuvent parcourir. Il nécessite macFUSE installé et une version avec la fonction de montage ; sans elle, l'onglet Fichiers parcourt le conteneur dans l'application.",
+            "Подключение представляет открытый контейнер системе как настоящий диск, который могут просматривать другие приложения. Для этого нужны установленный macFUSE и сборка с функцией подключения; без неё вкладка «Файлы» просматривает контейнер внутри приложения.",
+            "A montagem apresenta um contêiner aberto ao sistema como uma unidade real que seus outros aplicativos podem navegar. Requer o macFUSE instalado e uma versão com o recurso de montagem; sem ele, a aba Arquivos navega pelo contêiner dentro do app.",
+        ),
+
+        // ---- settings.rs: security ----
+        "Everything stays on this computer" => pick(
+            lang,
+            en,
+            "Alles bleibt auf diesem Computer",
+            "Todo permanece en este equipo",
+            "Tout reste sur cet ordinateur",
+            "Всё остаётся на этом компьютере",
+            "Tudo permanece neste computador",
+        ),
+        "VaultPony makes no network requests at all. Opening, editing, and your passwords never leave the machine. The links on this screen open your browser; the app itself never connects." => pick(
+            lang,
+            en,
+            "VaultPony stellt überhaupt keine Netzwerkanfragen. Öffnen, Bearbeiten und deine Passwörter verlassen den Rechner nie. Die Links auf diesem Bildschirm öffnen deinen Browser; die App selbst verbindet sich nie.",
+            "VaultPony no realiza ninguna solicitud de red. Abrir, editar y tus contraseñas nunca salen del equipo. Los enlaces de esta pantalla abren tu navegador; la app en sí nunca se conecta.",
+            "VaultPony n'effectue aucune requête réseau. L'ouverture, la modification et vos mots de passe ne quittent jamais la machine. Les liens de cet écran ouvrent votre navigateur ; l'application elle-même ne se connecte jamais.",
+            "VaultPony вообще не выполняет сетевых запросов. Открытие, редактирование и ваши пароли никогда не покидают машину. Ссылки на этом экране открывают браузер; само приложение никогда не подключается.",
+            "O VaultPony não faz nenhuma requisição de rede. Abrir, editar e suas senhas nunca saem da máquina. Os links desta tela abrem o navegador; o app em si nunca se conecta.",
+        ),
+        "The VeraCrypt format" => pick(
+            lang,
+            en,
+            "Das VeraCrypt-Format",
+            "El formato VeraCrypt",
+            "Le format VeraCrypt",
+            "Формат VeraCrypt",
+            "O formato VeraCrypt",
+        ),
+        "Containers use the VeraCrypt on-disk format: your chosen cipher (including cascades) with XTS, and PBKDF2 key derivation at the PRF and PIM you pick. This is a clean-room implementation from the published format." => pick(
+            lang,
+            en,
+            "Container verwenden das VeraCrypt-Format auf dem Datenträger: deine gewählte Verschlüsselung (auch Kaskaden) mit XTS und PBKDF2-Schlüsselableitung mit dem von dir gewählten PRF und PIM. Dies ist eine Clean-Room-Implementierung nach dem veröffentlichten Format.",
+            "Los contenedores usan el formato en disco de VeraCrypt: el cifrado que elijas (incluidas cascadas) con XTS y derivación de claves PBKDF2 con el PRF y el PIM que selecciones. Es una implementación limpia a partir del formato publicado.",
+            "Les conteneurs utilisent le format sur disque de VeraCrypt : le chiffrement choisi (y compris les cascades) avec XTS et la dérivation de clés PBKDF2 selon le PRF et le PIM retenus. C'est une implémentation clean-room à partir du format publié.",
+            "Контейнеры используют дисковый формат VeraCrypt: выбранное вами шифрование (в том числе каскады) с XTS и вывод ключей PBKDF2 с выбранными PRF и PIM. Это чистая реализация по опубликованному формату.",
+            "Os contêineres usam o formato em disco do VeraCrypt: a cifra escolhida (incluindo cascatas) com XTS e derivação de chaves PBKDF2 com o PRF e o PIM que você selecionar. É uma implementação clean-room a partir do formato publicado.",
+        ),
+        "Secrets in memory" => pick(
+            lang,
+            en,
+            "Geheimnisse im Speicher",
+            "Secretos en memoria",
+            "Secrets en mémoire",
+            "Секреты в памяти",
+            "Segredos na memória",
+        ),
+        "Passphrases and keys are zeroized when a container locks, through one lock path. Auto-lock and unmount run that same path." => pick(
+            lang,
+            en,
+            "Passwörter und Schlüssel werden beim Sperren eines Containers über einen einzigen Sperrpfad genullt. Automatische Sperre und Aushängen nutzen denselben Pfad.",
+            "Las contraseñas y las claves se ponen a cero al bloquear un contenedor, mediante una única ruta de bloqueo. El bloqueo automático y el desmontaje usan esa misma ruta.",
+            "Les mots de passe et les clés sont mis à zéro au verrouillage d'un conteneur, via un seul chemin de verrouillage. Le verrouillage automatique et le démontage empruntent ce même chemin.",
+            "Пароли и ключи обнуляются при блокировке контейнера через единый путь блокировки. Автоблокировка и отключение используют тот же путь.",
+            "As senhas e as chaves são zeradas ao bloquear um contêiner, por um único caminho de bloqueio. O bloqueio automático e a desmontagem usam esse mesmo caminho.",
+        ),
+        "What VaultPony does not do" => pick(
+            lang,
+            en,
+            "Was VaultPony nicht tut",
+            "Lo que VaultPony no hace",
+            "Ce que VaultPony ne fait pas",
+            "Чего VaultPony не делает",
+            "O que o VaultPony não faz",
+        ),
+        "It does not back your containers up anywhere. Keep your own copies." => pick(
+            lang,
+            en,
+            "Es sichert deine Container nirgends. Bewahre eigene Kopien auf.",
+            "No respalda tus contenedores en ningún sitio. Guarda tus propias copias.",
+            "Il ne sauvegarde vos conteneurs nulle part. Conservez vos propres copies.",
+            "Оно нигде не создаёт резервные копии ваших контейнеров. Храните собственные копии.",
+            "Ele não faz backup dos seus contêineres em lugar nenhum. Guarde suas próprias cópias.",
+        ),
+        "It cannot recover a container whose password you have lost." => pick(
+            lang,
+            en,
+            "Es kann keinen Container wiederherstellen, dessen Passwort du verloren hast.",
+            "No puede recuperar un contenedor cuya contraseña hayas perdido.",
+            "Il ne peut pas récupérer un conteneur dont vous avez perdu le mot de passe.",
+            "Оно не может восстановить контейнер, пароль от которого вы потеряли.",
+            "Ele não consegue recuperar um contêiner cuja senha você perdeu.",
+        ),
+        "It sends no analytics or telemetry, ever." => pick(
+            lang,
+            en,
+            "Es sendet niemals Analysen oder Telemetrie.",
+            "Nunca envía analíticas ni telemetría.",
+            "Il n'envoie jamais d'analyses ni de télémétrie.",
+            "Оно никогда не отправляет аналитику или телеметрию.",
+            "Ele nunca envia análises ou telemetria.",
+        ),
+        "It cannot protect files after they leave a container, or defend a computer already compromised at the system level." => pick(
+            lang,
+            en,
+            "Es kann Dateien nicht schützen, nachdem sie einen Container verlassen haben, und keinen Computer verteidigen, der auf Systemebene bereits kompromittiert ist.",
+            "No puede proteger los archivos una vez que salen de un contenedor, ni defender un equipo ya comprometido a nivel de sistema.",
+            "Il ne peut pas protéger les fichiers une fois sortis d'un conteneur, ni défendre un ordinateur déjà compromis au niveau du système.",
+            "Оно не может защитить файлы после того, как они покинули контейнер, и не может защитить компьютер, уже скомпрометированный на системном уровне.",
+            "Ele não consegue proteger arquivos depois que saem de um contêiner, nem defender um computador já comprometido no nível do sistema.",
+        ),
+
+        // ---- settings.rs: licenses ----
+        "VaultPony Desktop is Apache-2.0 and builds on these, each under its own license. macFUSE, if you install it for mounting, is a separate third-party component and is never bundled." => pick(
+            lang,
+            en,
+            "VaultPony Desktop steht unter Apache-2.0 und baut auf diesen auf, jeweils unter eigener Lizenz. macFUSE ist, falls du es zum Einhängen installierst, eine separate Drittanbieter-Komponente und wird nie mitgeliefert.",
+            "VaultPony Desktop es Apache-2.0 y se apoya en estos, cada uno bajo su propia licencia. macFUSE, si lo instalas para montar, es un componente de terceros aparte y nunca se incluye.",
+            "VaultPony Desktop est sous Apache-2.0 et s'appuie sur ceux-ci, chacun sous sa propre licence. macFUSE, si vous l'installez pour le montage, est un composant tiers distinct et n'est jamais fourni.",
+            "VaultPony Desktop распространяется под Apache-2.0 и опирается на следующие компоненты, каждый под своей лицензией. macFUSE, если вы установите его для подключения, — отдельный сторонний компонент и никогда не поставляется в комплекте.",
+            "O VaultPony Desktop é Apache-2.0 e se baseia nestes, cada um sob a própria licença. O macFUSE, se você o instalar para montagem, é um componente de terceiros à parte e nunca é incluído.",
+        ),
+        "VaultPonyCore (the container implementation)" => pick(
+            lang,
+            en,
+            "VaultPonyCore (die Container-Implementierung)",
+            "VaultPonyCore (la implementación del contenedor)",
+            "VaultPonyCore (l'implémentation du conteneur)",
+            "VaultPonyCore (реализация контейнера)",
+            "VaultPonyCore (a implementação do contêiner)",
+        ),
+        "egui, eframe (the user interface)" => pick(
+            lang,
+            en,
+            "egui, eframe (die Benutzeroberfläche)",
+            "egui, eframe (la interfaz de usuario)",
+            "egui, eframe (l'interface utilisateur)",
+            "egui, eframe (пользовательский интерфейс)",
+            "egui, eframe (a interface do usuário)",
+        ),
+        "Inter, JetBrains Mono, Lucide (fonts and icons)" => pick(
+            lang,
+            en,
+            "Inter, JetBrains Mono, Lucide (Schriften und Symbole)",
+            "Inter, JetBrains Mono, Lucide (fuentes e iconos)",
+            "Inter, JetBrains Mono, Lucide (polices et icônes)",
+            "Inter, JetBrains Mono, Lucide (шрифты и значки)",
+            "Inter, JetBrains Mono, Lucide (fontes e ícones)",
+        ),
+        "DejaVu (Cyrillic fallback)" => pick(
+            lang,
+            en,
+            "DejaVu (kyrillischer Fallback)",
+            "DejaVu (respaldo cirílico)",
+            "DejaVu (secours cyrillique)",
+            "DejaVu (запасной кириллический шрифт)",
+            "DejaVu (reserva cirílica)",
+        ),
+        "serde, rfd, directories, anyhow, zeroize" => en,
+        "fuser (optional mount backend)" => pick(
+            lang,
+            en,
+            "fuser (optionales Einhänge-Backend)",
+            "fuser (backend de montaje opcional)",
+            "fuser (backend de montage optionnel)",
+            "fuser (необязательный бэкенд подключения)",
+            "fuser (backend de montagem opcional)",
+        ),
+
+        // ---- settings.rs: family ----
+        "age encryption with post-quantum recipients." => pick(
+            lang,
+            en,
+            "age-Verschlüsselung mit Post-Quanten-Empfängern.",
+            "cifrado age con destinatarios poscuánticos.",
+            "chiffrement age avec des destinataires post-quantiques.",
+            "шифрование age с постквантовыми получателями.",
+            "criptografia age com destinatários pós-quânticos.",
+        ),
+        "OpenPGP encryption for your messages and files." => pick(
+            lang,
+            en,
+            "OpenPGP-Verschlüsselung für deine Nachrichten und Dateien.",
+            "cifrado OpenPGP para tus mensajes y archivos.",
+            "chiffrement OpenPGP pour vos messages et fichiers.",
+            "шифрование OpenPGP для ваших сообщений и файлов.",
+            "criptografia OpenPGP para suas mensagens e arquivos.",
+        ),
+        "Your pass and passage store, in your pocket." => pick(
+            lang,
+            en,
+            "Dein Speicher für Passwörter und Zugänge, in der Tasche.",
+            "Tu almacén de contraseñas y accesos, en el bolsillo.",
+            "Votre coffre de mots de passe et d'accès, dans votre poche.",
+            "Ваше хранилище паролей и пропусков — в кармане.",
+            "Seu cofre de senhas e acessos, no bolso.",
+        ),
+        "Split a secret into cards. Any few rebuild it. One alone reveals nothing." => pick(
+            lang,
+            en,
+            "Teile ein Geheimnis in Karten auf. Einige wenige stellen es wieder her. Eine allein verrät nichts.",
+            "Divide un secreto en tarjetas. Unas pocas lo reconstruyen. Una sola no revela nada.",
+            "Divisez un secret en cartes. Quelques-unes le reconstituent. Une seule ne révèle rien.",
+            "Разделите секрет на карты. Несколько восстановят его. Одна не раскрывает ничего.",
+            "Divida um segredo em cartões. Alguns poucos o reconstroem. Um sozinho não revela nada.",
+        ),
+        "Strips identifying metadata out of JPEGs without touching a pixel." => pick(
+            lang,
+            en,
+            "Entfernt identifizierende Metadaten aus JPEGs, ohne ein Pixel anzurühren.",
+            "Elimina metadatos identificativos de los JPEG sin tocar un solo píxel.",
+            "Supprime les métadonnées identifiantes des JPEG sans toucher un pixel.",
+            "Удаляет идентифицирующие метаданные из JPEG, не трогая ни пикселя.",
+            "Remove metadados de identificação de JPEGs sem tocar em um pixel.",
+        ),
+        "Encrypted file transfer, phone to phone." => pick(
+            lang,
+            en,
+            "Verschlüsselte Dateiübertragung, von Telefon zu Telefon.",
+            "Transferencia de archivos cifrada, de teléfono a teléfono.",
+            "Transfert de fichiers chiffré, d'un téléphone à l'autre.",
+            "Зашифрованная передача файлов, с телефона на телефон.",
+            "Transferência de arquivos criptografada, de telefone para telefone.",
+        ),
+        "Private messaging and file transfer, sealed end to end." => pick(
+            lang,
+            en,
+            "Private Nachrichten und Dateiübertragung, Ende-zu-Ende versiegelt.",
+            "Mensajería y transferencia de archivos privadas, selladas de extremo a extremo.",
+            "Messagerie et transfert de fichiers privés, scellés de bout en bout.",
+            "Личные сообщения и передача файлов, запечатанные сквозным шифрованием.",
+            "Mensagens e transferência de arquivos privadas, seladas de ponta a ponta.",
+        ),
+        "Send a secret. Encrypted on your phone, burned after reading." => pick(
+            lang,
+            en,
+            "Sende ein Geheimnis. Auf deinem Telefon verschlüsselt, nach dem Lesen gelöscht.",
+            "Envía un secreto. Cifrado en tu teléfono, destruido tras leerlo.",
+            "Envoyez un secret. Chiffré sur votre téléphone, détruit après lecture.",
+            "Отправьте секрет. Зашифрован на вашем телефоне, уничтожается после прочтения.",
+            "Envie um segredo. Criptografado no seu telefone, destruído após a leitura.",
+        ),
+        "Every Pony app on one page:" => pick(
+            lang,
+            en,
+            "Jede Pony-App auf einer Seite:",
+            "Todas las apps Pony en una página:",
+            "Toutes les applis Pony sur une page :",
+            "Все приложения Pony на одной странице:",
+            "Todos os apps Pony em uma página:",
+        ),
+        "Links open in your browser. The app itself never makes a network request." => pick(
+            lang,
+            en,
+            "Links öffnen in deinem Browser. Die App selbst stellt nie eine Netzwerkanfrage.",
+            "Los enlaces se abren en tu navegador. La app en sí nunca hace una solicitud de red.",
+            "Les liens s'ouvrent dans votre navigateur. L'application elle-même ne fait jamais de requête réseau.",
+            "Ссылки открываются в вашем браузере. Само приложение никогда не выполняет сетевых запросов.",
+            "Os links abrem no seu navegador. O app em si nunca faz uma requisição de rede.",
+        ),
+
+        // Anything without an entry falls back to the English literal.
+        _ => en,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_key_has_every_language_nonempty() {
+        for &key in &Key::ALL {
+            for lang in Lang::ALL {
+                let s = t(lang, key);
+                assert!(!s.is_empty(), "empty string for {key:?} in {lang:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn codes_round_trip() {
+        for lang in Lang::ALL {
+            assert_eq!(Lang::from_code(lang.code()), lang);
+        }
+        assert_eq!(Lang::from_code("zz"), Lang::En); // unknown falls back
+        assert_eq!(Lang::from_code("pt-BR"), Lang::PtBr);
+    }
+
+    #[test]
+    fn known_translations() {
+        assert_eq!(t(Lang::De, Key::TabSettings), "Einstellungen");
+        assert_eq!(t(Lang::Ru, Key::Lock), "Заблокировать");
+        assert_eq!(t(Lang::Fr, Key::HiddenVolume), "Volume caché");
+        assert_eq!(t(Lang::PtBr, Key::Passphrase), "Senha");
+    }
+
+    #[test]
+    fn tr_english_is_identity() {
+        assert_eq!(tr(Lang::En, "Working..."), "Working...");
+        assert_eq!(
+            tr(Lang::En, "anything at all, even unknown"),
+            "anything at all, even unknown"
+        );
+    }
+
+    #[test]
+    fn tr_unknown_falls_back_to_english() {
+        // A string with no table entry returns itself in every language.
+        let s = "a string that is deliberately not in the table";
+        for lang in Lang::ALL {
+            assert_eq!(tr(lang, s), s);
+        }
+    }
+
+    #[test]
+    fn tr_translates_known_strings() {
+        assert_eq!(tr(Lang::De, "Working..."), "Arbeitet…");
+        assert_eq!(tr(Lang::Fr, "Locked."), "Verrouillé.");
+        assert_eq!(tr(Lang::Es, "Choose location..."), "Elegir ubicación…");
+    }
+
+    /// Every template placeholder in an English key must survive into all six
+    /// translations, or the caller's `.replace()` would leave a hole.
+    #[test]
+    fn tr_templates_preserve_placeholders() {
+        const TEMPLATES: &[&str] = &[
+            "Trying {prf} ({i}/{n})...",
+            "Unlocked. {scheme} / {prf}.",
+            "Could not unlock: {e}",
+            "Created {name}.",
+            "Ready to unlock {name}.",
+            "Could not create: {e}",
+            "Mounted at {path}",
+            "Mount failed: {e}. Unlock again to retry.",
+            "Cannot list: {err}",
+            "Added {name} ({size})",
+            "Created {name}/",
+            "Extracted {n} file(s) to {path}",
+            "Deleted {name}",
+            "Error: {e}",
+            "{n} keyfile(s)",
+            "Unknown cipher: {name}",
+            "Unknown hash: {name}",
+            "Backed up header to {path}",
+        ];
+        for &tmpl in TEMPLATES {
+            let wanted: Vec<&str> = placeholders(tmpl);
+            for lang in Lang::ALL {
+                let got = placeholders(tr(lang, tmpl));
+                assert_eq!(
+                    wanted, got,
+                    "placeholder mismatch for {tmpl:?} in {lang:?}: {got:?}"
+                );
+            }
+        }
+    }
+
+    /// Collect `{...}` tokens in order.
+    fn placeholders(s: &str) -> Vec<&str> {
+        let mut out = Vec::new();
+        let bytes = s.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'{' {
+                if let Some(end) = s[i..].find('}') {
+                    out.push(&s[i..i + end + 1]);
+                    i += end + 1;
+                    continue;
+                }
+            }
+            i += 1;
+        }
+        out.sort_unstable();
+        out
+    }
+}

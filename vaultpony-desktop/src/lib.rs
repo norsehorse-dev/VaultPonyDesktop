@@ -9,11 +9,16 @@
 
 pub mod app;
 pub mod cli;
+pub mod i18n;
 pub mod mark;
 pub mod mount;
+pub mod newvolume;
 pub mod panels;
+pub mod settings;
 pub mod tasks;
 pub mod theme;
+pub mod tools;
+pub mod vfsops;
 
 /// Open the window.
 ///
@@ -21,19 +26,12 @@ pub mod theme;
 ///
 /// Whatever `eframe` returns if the window cannot be created.
 pub fn run_gui() -> eframe::Result {
-    const ICON: usize = 256;
-    let icon = egui::IconData {
-        rgba: mark::rasterise(ICON),
-        width: ICON as u32,
-        height: ICON as u32,
-    };
-
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1020.0, 700.0])
             .with_min_inner_size([760.0, 500.0])
             .with_title("VaultPony")
-            .with_icon(icon),
+            .with_icon(mark::window_icon()),
         ..Default::default()
     };
 

@@ -3,3 +3,7 @@
 .DS_Store
 # Local two-repo dev override (sibling core checkout). Never committed.
 /.cargo/config.toml
+
+# Delivery archives and scratch from remote sessions, never committed.
+/.vp-*.tgz
+/_to_delete/

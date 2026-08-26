@@ -10,8 +10,11 @@ fn main() -> ExitCode {
     match vaultpony_desktop::cli::run(&vaultpony_desktop::args()) {
         Some(code) => ExitCode::from(code as u8),
         None => {
-            eprintln!("vaultpony-cli: no verb given. Try --help.");
-            ExitCode::from(2)
+            // No verb: there is no window to open from the console binary, so
+            // print what it is and how to get the verb list.
+            println!("{}", vaultpony_desktop::cli::version_line());
+            println!("\nRun `vaultpony-cli --help` for the verbs, or open VaultPony itself.");
+            ExitCode::SUCCESS
         }
     }
 }

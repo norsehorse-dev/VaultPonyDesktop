@@ -1,36 +1,58 @@
-//! Volumes panel.
-//!
-//! For P0 this is the whole app: pick a container, unlock it, and browse the
-//! decrypted directory tree. The mount table (many volumes open at once, each
-//! optionally mounted as a real drive) replaces the single-volume view in P5.
+//! Volumes panel: unlock a container, see what opened it, lock or mount it.
 
 use eframe::egui::{self, Ui};
 
-use crate::app::{App, Volume};
+use crate::app::App;
+use crate::i18n::Key;
+use crate::theme::{self, ic};
 
 pub fn ui(app: &mut App, ui: &mut Ui) {
-    ui.add_space(8.0);
-    ui.heading("Volumes");
-    ui.add_space(8.0);
+    theme::screen_head(ui, app.t(Key::TabVolumes), app.t(Key::SubVolumes), |_ui| {});
 
-    unlock_form(app, ui);
+    if app.mount.is_some() {
+        theme::card(ui, |ui| mounted_view(app, ui));
+        ui.add_space(theme::space::MD);
+    }
 
-    ui.add_space(12.0);
-    ui.separator();
-    ui.add_space(12.0);
+    theme::card(ui, |ui| unlock_form(app, ui));
 
-    if app.volume.is_some() {
-        open_volume(app, ui);
-    } else {
-        ui.label("No volume open.");
+    if app.mount.is_none() {
+        ui.add_space(theme::space::MD);
+        if app.volume.is_some() {
+            theme::card(ui, |ui| open_volume(app, ui));
+        } else {
+            theme::empty_state(ui, ic::LOCK, app.t(Key::NoVolumeOpen));
+        }
+    }
+}
+
+fn mounted_view(app: &mut App, ui: &mut Ui) {
+    theme::section(ui, app.t(crate::i18n::Key::SecMounted));
+    ui.add_space(theme::space::SM);
+    let mountpoint = app
+        .mount
+        .as_ref()
+        .map(|m| m.mountpoint().display().to_string())
+        .unwrap_or_default();
+    ui.horizontal(|ui| {
+        theme::icon(ui, ic::CHECK, 14.0, theme::ACCENT);
+        ui.monospace(mountpoint);
+    });
+    ui.add_space(theme::space::TIGHT);
+    ui.weak(app.tr("Open the mount point in Finder to use the volume. It is mounted read-only."));
+    ui.add_space(theme::space::MD);
+    if theme::secondary_button(ui, app.t(Key::Unmount)).clicked() {
+        app.unmount();
     }
 }
 
 fn unlock_form(app: &mut App, ui: &mut Ui) {
+    theme::section(ui, app.t(Key::Unlock));
+    ui.add_space(theme::space::SM);
     let running = app.job.is_some();
 
     ui.horizontal(|ui| {
-        if ui.button("Choose container...").clicked() {
+        if theme::secondary_button(ui, app.t(Key::ChooseContainer)).clicked() {
             if let Some(path) = rfd::FileDialog::new().pick_file() {
                 app.container_path = Some(path);
             }
@@ -40,39 +62,51 @@ fn unlock_form(app: &mut App, ui: &mut Ui) {
             .as_ref()
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "no file chosen".to_owned());
-        ui.label(shown);
+            .unwrap_or_else(|| app.t(Key::NoFileChosen).to_owned());
+        ui.weak(shown);
     });
 
-    ui.add_space(6.0);
+    ui.add_space(theme::space::SM);
     ui.horizontal(|ui| {
-        ui.label("Passphrase");
+        ui.label(app.t(Key::Passphrase));
         ui.add(
             egui::TextEdit::singleline(&mut app.password)
                 .password(true)
-                .desired_width(240.0)
-                .hint_text("Passphrase"),
+                .desired_width(240.0),
         );
     });
 
-    ui.add_space(4.0);
     ui.horizontal(|ui| {
-        ui.label("PIM");
+        ui.label(app.t(Key::Pim));
         ui.add(
             egui::TextEdit::singleline(&mut app.pim)
                 .desired_width(80.0)
                 .hint_text("0"),
         );
-        ui.small("blank or 0 uses the default iteration schedule");
+        ui.weak(app.t(Key::HintPimDefault));
     });
 
-    ui.add_space(8.0);
+    ui.add_space(theme::space::SM);
+    let protect_label = app.t(Key::ProtectHiddenCheck);
+    ui.checkbox(&mut app.protect_hidden, protect_label);
+    if app.protect_hidden {
+        ui.horizontal(|ui| {
+            ui.label(app.t(Key::HiddenPassphrase));
+            ui.add(
+                egui::TextEdit::singleline(&mut app.hidden_password)
+                    .password(true)
+                    .desired_width(240.0),
+            );
+        });
+        ui.weak(app.tr("A write that would hit the hidden region is refused."));
+    } else {
+        ui.weak(app.t(Key::HintHiddenSelect));
+    }
+
+    ui.add_space(theme::space::MD);
     ui.horizontal(|ui| {
         let can_unlock = !running && app.container_path.is_some();
-        if ui
-            .add_enabled(can_unlock, egui::Button::new("Unlock"))
-            .clicked()
-        {
+        if theme::primary_button_enabled(ui, app.t(Key::Unlock), can_unlock).clicked() {
             let ctx = ui.ctx().clone();
             app.start_unlock(&ctx);
         }
@@ -82,157 +116,82 @@ fn unlock_form(app: &mut App, ui: &mut Ui) {
     });
 
     if !app.status.is_empty() {
-        ui.add_space(6.0);
-        ui.label(&app.status);
+        ui.add_space(theme::space::SM);
+        let err = is_error(&app.status);
+        theme::status_line(ui, &app.status, err);
     }
 }
 
 fn open_volume(app: &mut App, ui: &mut Ui) {
-    // Pull display facts and decide navigation without holding a borrow across
-    // the mutating calls (lock, refresh) below.
     let mut lock_clicked = false;
-    let mut go: Option<String> = None;
+    let mut mount_clicked = false;
 
     if let Some(v) = &app.volume {
+        let mode = if v.writable {
+            app.t(Key::ReadWrite)
+        } else {
+            app.t(Key::ReadOnly)
+        };
+        let name = v
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "container".to_owned());
+
+        theme::section(ui, app.t(Key::SecOpenVolume));
+        ui.add_space(theme::space::SM);
         ui.horizontal(|ui| {
-            ui.strong(
-                v.path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "container".to_owned()),
-            );
-            if ui.button("Lock").clicked() {
-                lock_clicked = true;
-            }
+            theme::icon(ui, ic::LOCK_OPEN, 15.0, theme::ACCENT);
+            ui.label(egui::RichText::new(name).font(theme::semibold(14.0)));
         });
-        ui.add_space(4.0);
-        ui.label(format!(
-            "{} / {}   filesystem {:?}   {}",
-            v.scheme,
-            v.prf,
-            v.kind,
-            if v.writable {
-                "read-write"
-            } else {
-                "read-only"
-            }
+        ui.add_space(theme::space::TIGHT);
+        ui.weak(format!(
+            "{} / {}   ·   {:?}   ·   {}",
+            v.scheme, v.prf, v.kind, mode
         ));
 
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            if ui
-                .add_enabled(v.cwd != "/", egui::Button::new("Up"))
-                .clicked()
-            {
-                go = Some(parent_of(&v.cwd));
-            }
-            ui.monospace(&v.cwd);
-        });
-        ui.add_space(6.0);
+        if v.protected {
+            ui.add_space(theme::space::TIGHT);
+            ui.colored_label(
+                theme::ACCENT,
+                app.tr(
+                    "Hidden-volume protection is on: writes into the hidden region are refused.",
+                ),
+            );
+        }
+        ui.add_space(theme::space::SM);
+        ui.weak(app.t(Key::HintOpenFilesTab));
 
-        if let Some(err) = &v.list_error {
-            ui.colored_label(egui::Color32::LIGHT_RED, format!("Cannot list: {err}"));
-        } else {
-            go = go.or_else(|| listing_table(ui, v));
+        ui.add_space(theme::space::MD);
+        ui.horizontal(|ui| {
+            if theme::secondary_button(ui, app.t(Key::Lock)).clicked() {
+                lock_clicked = true;
+            }
+            match crate::mount::unavailable_reason() {
+                None => {
+                    if theme::primary_button(ui, app.t(Key::MountAsDrive)).clicked() {
+                        mount_clicked = true;
+                    }
+                }
+                Some(_) => {
+                    theme::primary_button_enabled(ui, app.t(Key::MountAsDrive), false);
+                }
+            }
+        });
+        if let Some(reason) = crate::mount::unavailable_reason() {
+            ui.add_space(theme::space::TIGHT);
+            ui.weak(reason);
         }
     }
 
     if lock_clicked {
         app.lock();
-        return;
-    }
-    if let Some(dir) = go {
-        if let Some(v) = app.volume.as_mut() {
-            v.cwd = dir;
-        }
-        app.refresh_listing();
+    } else if mount_clicked {
+        app.start_mount();
     }
 }
 
-/// Render the directory listing. Returns the path to navigate into if the user
-/// clicked a directory.
-fn listing_table(ui: &mut Ui, v: &Volume) -> Option<String> {
-    let mut go = None;
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        egui::Grid::new("entries")
-            .num_columns(2)
-            .striped(true)
-            .spacing([24.0, 4.0])
-            .show(ui, |ui| {
-                if v.entries.is_empty() {
-                    ui.label("(empty)");
-                    ui.end_row();
-                }
-                for e in &v.entries {
-                    if e.is_dir {
-                        if ui.button(format!("{}/", e.name)).clicked() {
-                            go = Some(join(&v.cwd, &e.name));
-                        }
-                        ui.label("<dir>");
-                    } else {
-                        ui.label(&e.name);
-                        ui.monospace(human_size(e.size));
-                    }
-                    ui.end_row();
-                }
-            });
-    });
-    go
-}
-
-fn join(cwd: &str, name: &str) -> String {
-    if cwd == "/" {
-        format!("/{name}")
-    } else {
-        format!("{cwd}/{name}")
-    }
-}
-
-fn parent_of(cwd: &str) -> String {
-    match cwd.rfind('/') {
-        Some(0) | None => "/".to_owned(),
-        Some(i) => cwd[..i].to_owned(),
-    }
-}
-
-fn human_size(bytes: u64) -> String {
-    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
-    let mut size = bytes as f64;
-    let mut unit = 0;
-    while size >= 1024.0 && unit < UNITS.len() - 1 {
-        size /= 1024.0;
-        unit += 1;
-    }
-    if unit == 0 {
-        format!("{bytes} B")
-    } else {
-        format!("{size:.1} {}", UNITS[unit])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{human_size, join, parent_of};
-
-    #[test]
-    fn join_from_root_and_deeper() {
-        assert_eq!(join("/", "docs"), "/docs");
-        assert_eq!(join("/docs", "taxes"), "/docs/taxes");
-    }
-
-    #[test]
-    fn parent_walks_up_to_root() {
-        assert_eq!(parent_of("/docs/taxes"), "/docs");
-        assert_eq!(parent_of("/docs"), "/");
-        assert_eq!(parent_of("/"), "/");
-    }
-
-    #[test]
-    fn sizes_are_human() {
-        assert_eq!(human_size(0), "0 B");
-        assert_eq!(human_size(512), "512 B");
-        assert_eq!(human_size(1024), "1.0 KiB");
-        assert_eq!(human_size(1536), "1.5 KiB");
-        assert_eq!(human_size(1024 * 1024), "1.0 MiB");
-    }
+fn is_error(status: &str) -> bool {
+    let s = status.to_lowercase();
+    s.contains("could not") || s.contains("fail") || s.contains("error") || s.contains("wrong")
 }

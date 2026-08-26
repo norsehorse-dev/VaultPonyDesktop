@@ -1,0 +1,3 @@
+DejaVu Fonts, used here (Cyrillic subset) as a fallback for glyphs Inter does
+not include. Based on Bitstream Vera Fonts. License: free, permissive; see
+https://dejavu-fonts.github.io/License.html

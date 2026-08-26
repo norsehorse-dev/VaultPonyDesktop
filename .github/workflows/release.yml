@@ -1,0 +1,421 @@
+name: Release
+
+# Cut a release by pushing a version tag:
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# CI builds everything that needs a machine Kevin does not have -- the Linux .deb,
+# portable tarball and AppImage on both x86_64 and aarch64, and the Windows .msi --
+# and opens a DRAFT release with them attached. The macOS .dmg, every PGP signature
+# and the SHA256SUMS manifest are made on the Mac and attached by hand, then the
+# draft is published. RELEASING.md has the local half.
+#
+# This split is why the repository holds NO secrets. The Developer ID certificate
+# never reaches a hosted runner, and neither does the PGP release key.
+#
+# Notes carried over from AgePonyDesktop's workflow, still load-bearing here:
+#
+#  * ubuntu-22.04, NOT ubuntu-latest. A Rust binary inherits the glibc it was
+#    built against. ubuntu-latest (24.04, glibc 2.39) would produce artifacts that
+#    refuse to start on Debian 12, Ubuntu 22.04 and anything older. 22.04 is
+#    glibc 2.35.
+#  * The test suite runs before any artifact is built.
+#  * The GUI binary answers the verbs on macOS and Linux, so there is no second
+#    launcher there. Windows still needs vaultpony-cli.exe, because a GUI-subsystem
+#    process has no stdout.
+#  * Assets install to /usr/bin, so a tool run from a terminal is on PATH.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # One matrix, two architectures, ONE set of steps. Not two copied jobs: an arm64
+  # lane that drifts from the x86_64 lane is how a second architecture ships with a
+  # verification gap. Cross-compiling is avoided on purpose -- eframe links X11,
+  # Wayland and GL, and a target sysroot carrying all of those is where
+  # cross-compilation goes wrong.
+  linux:
+    name: deb + tarball + AppImage (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+            debarch: amd64
+            deb: VaultPony-linux-x86_64.deb
+            tarball: VaultPony-linux-x86_64.tar.gz
+            appimage: VaultPony-x86_64.AppImage
+            appimagetool: appimagetool-x86_64.AppImage
+            artifact: linux-x86_64
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+            debarch: arm64
+            deb: VaultPony-linux-arm64.deb
+            tarball: VaultPony-linux-aarch64.tar.gz
+            appimage: VaultPony-aarch64.AppImage
+            appimagetool: appimagetool-aarch64.AppImage
+            artifact: linux-aarch64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # rust-toolchain.toml is checked in and applies to local builds and CI alike.
+      - name: Show the toolchain
+        run: rustc --version && cargo --version
+
+      # eframe needs these to LINK, not merely to run. desktop-file-utils supplies
+      # desktop-file-validate, which appimagetool runs against the AppDir's
+      # .desktop and refuses to build without.
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libssl-dev libwayland-dev libgl1-mesa-dev \
+            fakeroot desktop-file-utils
+
+      - name: Test
+        run: |
+          cargo test --workspace --release
+          cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build
+        run: cargo build --release --workspace
+
+      - name: Package deb
+        run: |
+          cargo install cargo-deb --locked
+          cargo deb -p vaultpony-desktop --no-build --output ${{ matrix.deb }}
+
+      - name: Verify the deb's identity
+        run: |
+          dpkg-deb -f ${{ matrix.deb }} Package Version Architecture Depends
+          # Lowercase. A deb whose Package field is PascalCase is uninstallable on
+          # strict tooling, and the filename alone would not show it.
+          test "$(dpkg-deb -f ${{ matrix.deb }} Package)" = vaultpony
+          test "$(dpkg-deb -f ${{ matrix.deb }} Architecture)" = ${{ matrix.debarch }}
+          # $auto must have found real shared-library dependencies. An empty
+          # Depends on a Rust GUI binary means the ELF was not scanned, and the deb
+          # installs onto a machine with no GL and fails at launch.
+          deps=$(dpkg-deb -f ${{ matrix.deb }} Depends)
+          echo "Depends -> $deps"
+          test -n "$deps"
+          echo "$deps" | grep -q libc6
+
+      - name: Verify the deb's payload and desktop entry
+        run: |
+          rm -rf /tmp/debx && mkdir -p /tmp/debx
+          dpkg-deb -x ${{ matrix.deb }} /tmp/debx
+
+          launcher=$(find /tmp/debx -type f -perm -u+x -path '*/bin/*' -name 'vaultpony' | head -1)
+          echo "launcher in the deb -> ${launcher:-NONE FOUND}"
+          test -n "$launcher"
+          test "$launcher" = /tmp/debx/usr/bin/vaultpony
+
+          d=$(find /tmp/debx -name '*.desktop' -type f | head -1)
+          echo "desktop entry -> ${d:-NONE FOUND}"
+          test -n "$d"
+          cat "$d"
+          grep -q '^Exec=vaultpony' "$d"
+          desktop-file-validate "$d"
+
+          # Categories=Unknown is not a registered freedesktop main category, so an
+          # entry carrying it is spec-invalid and the app can land in no menu at
+          # all. The .desktop is committed, so assert it anyway.
+          cats=$(sed -n 's/^Categories=//p' "$d")
+          echo "Categories -> [$cats]"
+          test -n "$cats"
+          test "$cats" != Unknown
+
+          # No file associations: VaultPony registers no handler for an opened
+          # file. Asserting the ABSENCE makes this a tripwire -- adding
+          # associations later fails here and forces the .desktop and the routing
+          # code to land in the same change.
+          mime=$(sed -n 's/^MimeType=//p' "$d" | tr -d '; \t')
+          echo "MimeType value -> [$mime]"
+          test -z "$mime"
+
+          icon=$(find /tmp/debx -path '*icons*' -name 'vaultpony.png' | head -1)
+          echo "icon -> ${icon:-NONE FOUND}"
+          test -n "$icon"
+
+      # Binary plus the files a user needs, inside ONE versioned top-level
+      # directory. Never loose files that explode into $PWD.
+      - name: Build the portable tarball
+        run: |
+          rm -rf stage && mkdir -p stage/VaultPony
+          cp target/release/vaultpony stage/VaultPony/
+          cp README.md LICENSE NOTICE stage/VaultPony/
+          cp packaging/appimage/vaultpony.desktop packaging/vaultpony.png stage/VaultPony/
+          tar -czf ${{ matrix.tarball }} -C stage VaultPony
+
+      # The tarball has no installer to vouch for it, so it gets the checks the deb
+      # gets for free. This is also the step that proves the binary RUNS on this
+      # architecture -- everything above only proves it was produced.
+      - name: Verify the portable tarball
+        run: |
+          rm -rf /tmp/tarcheck && mkdir -p /tmp/tarcheck
+          tar -xzf ${{ matrix.tarball }} -C /tmp/tarcheck
+          VP=/tmp/tarcheck/VaultPony/vaultpony
+          test -x "$VP"
+
+          out=$("$VP" version 2>&1)
+          echo "version -> $out"
+          test -n "$out"
+          # The artifact reports the compiler that built it rather than the
+          # workflow inferring it from the runner, and names this architecture.
+          echo "$out" | grep -q 'rustc '
+          echo "$out" | grep -q '${{ matrix.arch }}'
+
+          # selftest exercises the real create/unlock/read path IN THIS BUILD.
+          # `set +e` so a failure is PRINTED rather than collapsing the step with
+          # no output: the whole value is learning WHICH check broke.
+          set +e
+          st=$("$VP" selftest 2>&1); code=$?
+          set -e
+          echo "$st"
+          echo "selftest exit -> $code"
+          test "$code" -eq 0
+          echo "$st" | grep -q '^PASS - all '
+
+      # AppRun and the .desktop are COMMITTED files copied in, never heredocs
+      # written inline. A YAML block scalar re-indents its content, and a shell
+      # script whose shebang arrives with leading whitespace cannot be exec'd at
+      # all -- and the failure names neither the cause nor the file.
+      #
+      # --appimage-extract-and-run is what lets appimagetool work on a runner: it
+      # unpacks itself rather than mounting, and hosted runners have no FUSE.
+      - name: Build AppImage
+        run: |
+          APPDIR=VaultPony.AppDir
+          rm -rf "$APPDIR"
+          mkdir -p "$APPDIR/usr/bin"
+          cp target/release/vaultpony "$APPDIR/usr/bin/vaultpony"
+          cp packaging/appimage/AppRun "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+          cp packaging/appimage/vaultpony.desktop "$APPDIR/vaultpony.desktop"
+          # Icon=vaultpony in the .desktop resolves to this file. The name must
+          # match or desktop-file-validate passes and the AppImage shows a generic
+          # icon.
+          cp packaging/vaultpony.png "$APPDIR/vaultpony.png"
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/${{ matrix.appimagetool }}
+          chmod +x ${{ matrix.appimagetool }}
+          ARCH=${{ matrix.arch }} ./${{ matrix.appimagetool }} --appimage-extract-and-run "$APPDIR" ${{ matrix.appimage }}
+
+      # --appimage-extract needs no FUSE either, so the produced image can be
+      # opened and its entry point actually executed. This proves AppRun's exec
+      # path resolves inside the bundle.
+      - name: Verify the AppImage runs
+        run: |
+          chmod +x ${{ matrix.appimage }}
+          rm -rf squashfs-root
+          ./${{ matrix.appimage }} --appimage-extract > /dev/null
+          test -x squashfs-root/AppRun
+          out=$(./squashfs-root/AppRun version 2>&1)
+          echo "AppRun version -> $out"
+          test -n "$out"
+          set +e
+          st=$(./squashfs-root/AppRun selftest 2>&1); code=$?
+          set -e
+          echo "$st"
+          echo "AppRun selftest exit -> $code"
+          test "$code" -eq 0
+          echo "$st" | grep -q '^PASS - all '
+          rm -rf squashfs-root
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.deb }}
+            ${{ matrix.tarball }}
+            ${{ matrix.appimage }}
+
+  windows:
+    name: msi (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Show the toolchain
+        run: rustc --version; cargo --version
+
+      - name: Test
+        run: |
+          cargo test --workspace --release
+          cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build msi
+        shell: pwsh
+        run: |
+          cargo install cargo-wix --locked
+          cargo build --release --workspace
+          cargo wix -p vaultpony-desktop --no-build --nocapture --output VaultPony-windows.msi
+
+      # WiX itself is not chatty about why it refused. candle/light dump little, so
+      # surface whatever they left behind.
+      - name: WiX logs on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter *.wixpdb -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+          Get-ChildItem target/wix -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+
+      # Verified against the INSTALLED msi, not a build directory. Installing also
+      # makes this the clean-machine install the release checklist otherwise never
+      # performs.
+      - name: Install the msi and verify it
+        shell: pwsh
+        run: |
+          $msi = (Resolve-Path VaultPony-windows.msi).Path
+          Write-Host "installing $msi"
+          $p = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "msiexec failed with exit code $($p.ExitCode)" }
+
+          $img = 'C:\Program Files\VaultPony'
+          if (-not (Test-Path $img)) {
+            Write-Host 'Program Files contents:'
+            Get-ChildItem 'C:\Program Files' -Directory | Select-Object -ExpandProperty Name
+            throw "installed app not found at $img"
+          }
+          Write-Host "installed at $img"
+
+          # 1. BOTH binaries. vaultpony-cli.exe is the console-subsystem one;
+          #    without it every verb on Windows runs and discards its output.
+          foreach ($exe in 'vaultpony.exe', 'vaultpony-cli.exe') {
+            $found = Get-ChildItem $img -Recurse -Filter $exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $found) {
+              Write-Host 'installed tree:'
+              Get-ChildItem $img -Recurse | Select-Object -ExpandProperty FullName
+              throw "binary missing: $exe"
+            }
+            Write-Host "$exe -> $($found.FullName)"
+          }
+          $cli = (Get-ChildItem $img -Recurse -Filter 'vaultpony-cli.exe' | Select-Object -First 1).FullName
+
+          # 2. The CLI actually PRINTS. A GUI-subsystem process has no stdout, so
+          #    this is the check that the second binary exists for.
+          $out = & $cli version 2>&1 | Out-String
+          Write-Host "vaultpony-cli version -> '$($out.Trim())'"
+          if ([string]::IsNullOrWhiteSpace($out)) {
+            throw 'vaultpony-cli.exe printed nothing - the console subsystem was not applied'
+          }
+          if ($out -notmatch 'VaultPony Desktop') { throw "version printed something unexpected: $out" }
+
+          # 3. selftest passes in the INSTALLED binary, asserting on real output
+          #    and the exit code rather than on the absence of an error string.
+          $st = & $cli selftest 2>&1 | Out-String
+          $stCode = $LASTEXITCODE
+          Write-Host $st
+          Write-Host "selftest exit -> $stCode"
+          if ($stCode -ne 0) { throw "selftest failed with exit code $stCode" }
+          if ($st -notmatch 'PASS - all ') { throw 'selftest did not report PASS - did it fall through to usage?' }
+
+          # 4. The GUI binary must be GUI-subsystem, or every launch flashes a
+          #    console window behind the app. Read that out of the PE header rather
+          #    than watching for output: windows_subsystem = "windows" stops
+          #    Windows ALLOCATING a console, it does not close stdout, so "it
+          #    printed, therefore the subsystem is wrong" is not true. This is the
+          #    direct assertion.
+          #
+          #    IMAGE_SUBSYSTEM_WINDOWS_GUI = 2, IMAGE_SUBSYSTEM_WINDOWS_CUI = 3.
+          #    Subsystem sits 68 bytes into the optional header in PE32 and PE32+.
+          function Get-PESubsystem($path) {
+            $bytes = [System.IO.File]::ReadAllBytes($path)
+            $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+            if ($bytes[$pe] -ne 0x50 -or $bytes[$pe + 1] -ne 0x45) { throw "$path is not a PE image" }
+            return [BitConverter]::ToUInt16($bytes, $pe + 24 + 68)
+          }
+
+          $gui = (Get-ChildItem $img -Recurse -Filter 'vaultpony.exe' | Select-Object -First 1).FullName
+          $guiSub = Get-PESubsystem $gui
+          Write-Host "vaultpony.exe subsystem -> $guiSub"
+          if ($guiSub -ne 2) {
+            throw "vaultpony.exe is subsystem $guiSub, expected 2 (GUI) - windows_subsystem = 'windows' was not applied, so the GUI will flash a console on every launch"
+          }
+
+          $cliSub = Get-PESubsystem $cli
+          Write-Host "vaultpony-cli.exe subsystem -> $cliSub"
+          if ($cliSub -ne 3) {
+            throw "vaultpony-cli.exe is subsystem $cliSub, expected 3 (console) - launched from Explorer it would have nowhere to print"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msi
+          path: VaultPony-windows.msi
+
+  draft:
+    name: Open the draft release
+    # Naming the matrix job once waits for BOTH of its legs.
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect
+        run: |
+          mkdir -p dist
+          mv artifacts/linux-x86_64/VaultPony-linux-x86_64.deb dist/
+          mv artifacts/linux-x86_64/VaultPony-linux-x86_64.tar.gz dist/
+          mv artifacts/linux-x86_64/VaultPony-x86_64.AppImage dist/
+          mv artifacts/linux-aarch64/VaultPony-linux-arm64.deb dist/
+          mv artifacts/linux-aarch64/VaultPony-linux-aarch64.tar.gz dist/
+          mv artifacts/linux-aarch64/VaultPony-aarch64.AppImage dist/
+          mv artifacts/msi/VaultPony-windows.msi dist/
+          ls -l dist
+          # Printed, not committed: the authoritative SHA256SUMS is built on the
+          # Mac once the dmg exists, and two manifests that disagree is worse than
+          # one that is late.
+          sha256sum dist/*
+
+      # Re-pushing a tag is a normal thing to do, and a bare `gh release create`
+      # fails outright when a release for that tag already exists, taking this job
+      # red for a reason unrelated to the build. Clear any existing DRAFT first. A
+      # PUBLISHED release is left alone deliberately.
+      - name: Clear any stale draft for this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" \
+               --json isDraft --jq '.isDraft' 2>/dev/null | grep -qx true; then
+            echo "deleting stale draft for ${{ github.ref_name }}"
+            gh release delete "${{ github.ref_name }}" --repo "${{ github.repository }}" --yes
+          else
+            echo "no draft to clear"
+          fi
+
+      # DRAFT, deliberately. A release published without the dmg, without
+      # signatures and without SHA256SUMS is visible to anyone watching the repo,
+      # and a download page starts linking assets that do not exist.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            dist/VaultPony-linux-x86_64.deb \
+            dist/VaultPony-linux-x86_64.tar.gz \
+            dist/VaultPony-x86_64.AppImage \
+            dist/VaultPony-linux-arm64.deb \
+            dist/VaultPony-linux-aarch64.tar.gz \
+            dist/VaultPony-aarch64.AppImage \
+            dist/VaultPony-windows.msi \
+            --repo "${{ github.repository }}" \
+            --title "VaultPony Desktop ${{ github.ref_name }}" \
+            --draft \
+            --generate-notes
+          echo "Draft created. Build and notarize the dmg, sign everything, attach, publish."
+          echo "See RELEASING.md."

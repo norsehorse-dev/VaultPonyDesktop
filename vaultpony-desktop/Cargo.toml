@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+description = "Open and edit VeraCrypt-compatible encrypted containers, entirely on your computer."
 
 # `vaultpony`, not `vaultpony-desktop`: the binary is what users run and what the
 # packaging refers to. `default-run` so `cargo run` is unambiguous with two bins.
@@ -25,14 +26,68 @@ path = "src/bin/vaultpony-cli.rs"
 name = "vaultpony_desktop"
 path = "src/lib.rs"
 
+# ---------------------------------------------------------------- packaging ---
+
+[package.metadata.deb]
+# Lowercase. A deb whose Package field is PascalCase is uninstallable on strict
+# tooling, and the filename alone would not show it. CI asserts this.
+name = "vaultpony"
+maintainer = "NorseHorse <NorseHorse@norsehor.se>"
+copyright = "2026, NorseHorse"
+license-file = ["../LICENSE", "0"]
+section = "utils"
+priority = "optional"
+# $auto reads the built ELF and derives the real shared-library dependencies. A
+# Rust GUI binary links X11, Wayland and GL and absolutely needs them declared.
+# CI fails the build if this comes out empty.
+depends = "$auto"
+extended-description = """
+Open and edit VeraCrypt-compatible encrypted containers, entirely on your \
+computer. Create containers, browse and edit their files, mount them as drives, \
+and manage headers and passwords. No accounts, no telemetry, no network access. \
+VeraCrypt is a trademark of IDRIX; VaultPony is not affiliated with IDRIX."""
+assets = [
+    ["../target/release/vaultpony", "usr/bin/", "755"],
+    ["../packaging/appimage/vaultpony.desktop", "usr/share/applications/vaultpony.desktop", "644"],
+    ["../packaging/vaultpony.png", "usr/share/icons/hicolor/512x512/apps/vaultpony.png", "644"],
+    ["../README.md", "usr/share/doc/vaultpony/README.md", "644"],
+]
+
+[package.metadata.wix]
+# The GUIDs live in wix/main.wxs and nowhere else. They were generated once for
+# VaultPony and are committed: change the UpgradeCode and every prior install is
+# stranded as a separate program the upgrader cannot see. ProductCode is a
+# different GUID and is regenerated per version by design.
+eula = false
+license = false
+
 [dependencies]
 vault-core = { workspace = true }
 vc-fs = { workspace = true }
 vc-crypto = { workspace = true }
 vc-types = { workspace = true }
+# Creating a container hands the core a block device (P2), which is vc-io's job.
+vc-io = { path = "../VaultPonyCore/core/vc-io" }
 zeroize = { workspace = true }
 eframe = { version = "0.35", features = ["persistence"] }
 egui = "0.35"
 rfd = "0.15"
 directories = "6"
 anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Decode the embedded app icon (PNG) for the window/dock icon and the rail mark.
+image = { version = "0.25", default-features = false, features = ["png"] }
+# The macFUSE / FUSE mount backend (P5). Optional and off by default: macFUSE is
+# a non-free kernel extension that must never be bundled, so the shipped build
+# carries no FUSE dependency. Turn it on with `--features fuse` (needs the FUSE
+# runtime installed) to mount volumes as real drives.
+fuser = { version = "0.14", optional = true }
+
+[features]
+# Off by default. Enables the real OS-mount backend (macFUSE on macOS).
+fuse = ["dep:fuser"]
+
+[dev-dependencies]
+# The bridge test (tests/bridge.rs) builds containers straight from vc-format.
+vc-format = { path = "../VaultPonyCore/core/vc-format" }

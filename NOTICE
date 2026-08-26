@@ -1,0 +1,27 @@
+VaultPony Desktop
+Copyright 2026 NorseHorse
+
+This product is licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License in the LICENSE file in this repository, or
+at http://www.apache.org/licenses/LICENSE-2.0.
+
+VeraCrypt is a trademark of IDRIX. VaultPony is not affiliated with, endorsed by,
+or sponsored by IDRIX. VaultPony reads and writes the VeraCrypt on-disk volume
+format through a clean-room implementation built from the published format; it
+contains no VeraCrypt or TrueCrypt source code.
+
+This software builds on the following third-party components, each distributed
+under its own license:
+
+  - egui and eframe (the user interface) - MIT OR Apache-2.0
+  - Inter and JetBrains Mono (fonts) - SIL Open Font License 1.1
+  - Lucide (icons) - ISC
+  - DejaVu Sans (Cyrillic fallback glyphs) - Bitstream Vera / public-domain
+    additions (permissive)
+  - serde, rfd, directories, anyhow, zeroize, image - MIT OR Apache-2.0
+  - a vendored, patched copy of the fatfs crate (in VaultPonyCore) - MIT OR
+    Apache-2.0
+  - fuser (optional mount backend, off by default) - MIT OR Apache-2.0
+
+macFUSE, if installed by the user to mount volumes as drives, is a separate
+third-party component under its own license. It is never bundled with VaultPony.
