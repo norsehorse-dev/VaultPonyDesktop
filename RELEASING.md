@@ -42,7 +42,7 @@ Create the repository and push `main` before the first tag:
 ```sh
 git init
 git add -A
-git commit -m "VaultPony Desktop 0.1.0"
+git commit -m "VaultPony Desktop 1.0.0"
 gh repo create norsehorse-dev/VaultPonyDesktop --public --source=. --push
 ```
 
@@ -56,9 +56,10 @@ dry-run.**
 
 ## 1. Before tagging
 
-**One number.** The workspace `version` in `Cargo.toml` feeds the deb, the MSI and the Info.plist.
-Keep it in step with VaultPonyCore's workspace version, which is what `build.rs` reads for the version
-shown in the app's About screen. Bump both together.
+**One number.** The workspace `version` in `Cargo.toml` is the single source: it feeds the deb, the
+MSI, the Info.plist, and the version shown in the app's About screen. The shared VaultPonyCore is
+versioned independently and is reported separately (the `(core ...)` half of the version line), so
+you bump only this one number for a desktop release.
 
 ```sh
 cargo test --workspace
@@ -75,8 +76,8 @@ print `PASS - all 5 checks`.
 ## 2. Tag - CI builds the seven
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0.0
+git push origin v1.0.0
 sleep 15
 gh run watch $(gh run list --workflow=release.yml --limit 1 \
   --json databaseId --jq '.[0].databaseId')
@@ -144,7 +145,7 @@ bytes that ship.
 
 ```sh
 mkdir -p ~/vaultpony-release && cd ~/vaultpony-release
-gh release download v0.1.0 --repo norsehorse-dev/VaultPonyDesktop --dir .
+gh release download v1.0.0 --repo norsehorse-dev/VaultPonyDesktop --dir .
 cp /Users/kevinstewart/Apps/VaultPonyDesktop/dist/VaultPony-macOS.dmg .
 
 FILES=(
@@ -182,9 +183,9 @@ key" on a keyring with more than one. Count **nine** `Good signature` lines befo
 Verify before publishing, not after. A signature that does not check out is worse than none.
 
 ```sh
-gh release upload v0.1.0 VaultPony-macOS.dmg *.asc SHA256SUMS \
+gh release upload v1.0.0 VaultPony-macOS.dmg *.asc SHA256SUMS \
   --repo norsehorse-dev/VaultPonyDesktop
-gh release edit v0.1.0 --draft=false --latest --repo norsehorse-dev/VaultPonyDesktop
+gh release edit v1.0.0 --draft=false --latest --repo norsehorse-dev/VaultPonyDesktop
 ```
 
 `--latest` is load-bearing. `releases/latest/download/...` - the stable, versionless URLs used in a
