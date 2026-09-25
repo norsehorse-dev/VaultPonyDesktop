@@ -71,7 +71,7 @@ git push
 ```
 
 A tag on a tree with uncommitted work produces a release that does not contain it. `selftest` must
-print `PASS - all 5 checks`.
+print `PASS - all 6 checks`.
 
 ## 2. Tag - CI builds the seven
 
@@ -136,7 +136,7 @@ Gotchas, all inherited from AgePony and all still current:
   `spctl -a -t exec` on the app inside the mounted image, and then actually running it.
 
 Confirm `lipo -info` reported **both** `x86_64` and `arm64`, and that `selftest` printed
-`PASS - all 5 checks`.
+`PASS - all 6 checks`.
 
 ## 4. Assemble, sign, publish
 
@@ -202,7 +202,7 @@ Artifacts:
       Linux users can verify later with `sha256sum -c`)
 - [ ] the tarball extracts and `VaultPony/vaultpony version` prints, once by hand on a real ARM machine
 - [ ] the AppImage is executable and runs, and double-clicking it opens the GUI on a desktop with FUSE
-- [ ] `selftest` reports `PASS - all 5 checks` from the **installed** artifact on every OS
+- [ ] `selftest` reports `PASS - all 6 checks` from the **installed** artifact on every OS
 - [ ] `selftest`'s version line reports the same rustc on all three platforms. The dmg is the artifact
       at risk, because it is the only one CI does not build
 
