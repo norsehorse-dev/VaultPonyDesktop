@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 use egui::Context;
-use vault_core::{ContainerFs, Session};
+use vault_core::{ContainerFs, KdfFilter, Session};
 use vc_fs::{DirEntry, FsKind};
 use zeroize::Zeroize;
 
@@ -206,6 +206,9 @@ pub struct ToolsForm {
     pub new_pass: String,
     pub new_pass2: String,
     pub new_pim: String,
+    /// Target KDF/hash for a password change, by registry name; `None` keeps
+    /// the current one.
+    pub new_kdf: Option<String>,
     pub output: String,
 }
 
@@ -221,6 +224,9 @@ pub struct App {
     pub protect_hidden: bool,
     pub hidden_password: String,
     unlock_was_protected: bool,
+    /// Which KDFs the unlock tries (Argon2id support, VeraCrypt 1.26.29+).
+    /// Auto matches VeraCrypt; narrowing skips the other family's cost.
+    pub unlock_kdf: KdfFilter,
 
     // In-flight unlock and its user-visible status line.
     pub job: Option<tasks::UnlockJob>,
@@ -276,6 +282,7 @@ impl App {
             protect_hidden: false,
             hidden_password: String::new(),
             unlock_was_protected: false,
+            unlock_kdf: KdfFilter::Auto,
             job: None,
             status: String::new(),
             volume: None,
@@ -394,6 +401,7 @@ impl App {
                 outer,
                 hidden,
                 pim,
+                self.unlock_kdf,
             ));
         } else {
             // Fold keyfiles into the passphrase. None wired into the unlock form
@@ -401,7 +409,23 @@ impl App {
             // a read-only toggle can gate this later (groundwork for P5).
             let secret = vc_crypto::apply_keyfiles(self.password.as_bytes(), &[]);
             self.password.zeroize();
-            self.job = Some(tasks::spawn_unlock(ctx.clone(), path, secret, pim, true));
+            self.job = Some(tasks::spawn_unlock(
+                ctx.clone(),
+                path,
+                secret,
+                pim,
+                true,
+                self.unlock_kdf,
+            ));
+        }
+    }
+
+    /// Ask the in-flight unlock to stop. It stops before its next key
+    /// derivation and reports back as cancelled.
+    pub fn cancel_unlock(&mut self) {
+        if let Some(job) = &self.job {
+            job.cancel();
+            self.status = self.tr("Cancelling...").to_owned();
         }
     }
 
@@ -441,6 +465,10 @@ impl App {
                 }
                 tasks::UnlockMsg::Done(Err(e)) => {
                     self.status = self.tr("Could not unlock: {e}").replace("{e}", &e);
+                    finished = true;
+                }
+                tasks::UnlockMsg::Cancelled => {
+                    self.status = self.tr("Unlock cancelled.").to_owned();
                     finished = true;
                 }
             }

@@ -80,17 +80,36 @@ pub fn restore_from_embedded(container: &Path, secret: &[u8], pim: u32) -> Resul
 /// Change a volume's password and PIM in place. The data is untouched; only the
 /// header key protecting the master keys is re-derived. Verify-then-write: the
 /// old secret must unlock before anything is written.
+///
+/// `new_prf` moves the header to another KDF/hash by registry name ("Argon2id",
+/// "SHA-512", ...); `None` keeps the current one. `new_pim` is read under the
+/// KDF the header ends up with, so 0 means that KDF's default. A PIM below the
+/// default with a password under 20 characters is refused, as VeraCrypt does.
 pub fn change_password(
     container: &Path,
     old: &[u8],
     old_pim: u32,
     new: &[u8],
     new_pim: u32,
+    new_prf: Option<&str>,
 ) -> Result<()> {
+    let prf = match new_prf {
+        None => None,
+        Some(name) => Some(
+            crate::newvolume::prf_by_name(name).ok_or_else(|| anyhow!("unknown hash {name}"))?,
+        ),
+    };
     let mut dev = FileDevice::open_rw(container)
         .map_err(vc)
         .context("opening the container to re-key it")?;
-    vault_core::change_password(&mut dev, old, old_pim, new, new_pim).map_err(vc)?;
+    vault_core::change_password_to(
+        &mut dev,
+        &vault_core::UnlockSecret::new(old, old_pim),
+        &vault_core::UnlockSecret::new(new, new_pim),
+        prf,
+        new,
+    )
+    .map_err(vc)?;
     Ok(())
 }
 

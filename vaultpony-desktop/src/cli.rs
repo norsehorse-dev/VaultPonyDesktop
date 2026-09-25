@@ -13,7 +13,7 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use vault_core::{ContainerFs, Session};
+use vault_core::{ContainerFs, KdfFilter, Session, UnlockSecret};
 use zeroize::Zeroizing;
 
 use crate::newvolume::{self, Spec};
@@ -167,6 +167,36 @@ fn run_selftest() -> Result<u32, String> {
     checks += 1;
 
     session.lock();
+
+    // 6. The Argon2id header KDF (VeraCrypt 1.26.29+): create at PIM 1
+    // (64 MiB, three passes) and unlock with the search narrowed to Argon2id.
+    let argon_path = scratch_path();
+    let _argon_guard = RemoveOnDrop(argon_path.clone());
+    let argon = newvolume::prf_by_name("Argon2id").ok_or("KDF Argon2id not in registry")?;
+    newvolume::create(&Spec {
+        path: argon_path.clone(),
+        prf: argon,
+        passphrase: Zeroizing::new(PASS.to_vec()),
+        ..spec
+    })
+    .map_err(|e| format!("Argon2id create failed: {e}"))?;
+    let dev = vc_io::FileDevice::open_read(&argon_path)
+        .map_err(|e| format!("Argon2id open failed: {e}"))?;
+    let secret = UnlockSecret {
+        kdf: KdfFilter::Argon2idOnly,
+        ..UnlockSecret::new(PASS, PIM)
+    };
+    let argon_session = Session::unlock_device_with(Box::new(dev), &secret, &mut |_, _, _| {})
+        .map_err(|e| format!("Argon2id unlock failed: {e}"))?;
+    if argon_session.prf() != "Argon2id" {
+        return Err(format!(
+            "Argon2id container reported {}",
+            argon_session.prf()
+        ));
+    }
+    argon_session.lock();
+    checks += 1;
+
     Ok(checks)
 }
 

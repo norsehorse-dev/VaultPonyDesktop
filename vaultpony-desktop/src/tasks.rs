@@ -1,17 +1,21 @@
 //! Off-thread work.
 //!
-//! Unlocking derives header keys through 500k PBKDF2 iterations, which must
-//! never run on the UI thread. For P0 there is one job, unlock: it runs on a
+//! Unlocking derives header keys (500k PBKDF2 iterations, or Argon2id with
+//! hundreds of MiB), which must never run on the UI thread. For P0 there is one job, unlock: it runs on a
 //! spawned thread, streams progress back over a channel, and hands the finished
 //! `Session` back the same way. Create and mount join this module in later
 //! phases.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
+use std::sync::Arc;
 use std::thread;
 
 use egui::Context;
-use vault_core::Session;
+use vault_core::{KdfFilter, Session, UnlockSecret};
+use vc_io::FileDevice;
+use vc_types::VcError;
 use zeroize::Zeroizing;
 
 /// A message from an in-flight unlock.
@@ -20,11 +24,30 @@ pub enum UnlockMsg {
     Progress { i: usize, n: usize, prf: String },
     /// The unlock finished, with the session or a displayable error.
     Done(Result<Session, String>),
+    /// The user cancelled the unlock before it found a header.
+    Cancelled,
 }
 
-/// A running unlock. Poll `rx` each frame.
+/// A running unlock. Poll `rx` each frame; set `cancel` to stop it before its
+/// next key derivation.
 pub struct UnlockJob {
     pub rx: Receiver<UnlockMsg>,
+    pub cancel: Arc<AtomicBool>,
+}
+
+impl UnlockJob {
+    pub fn cancel(&self) {
+        self.cancel.store(true, Ordering::Relaxed);
+    }
+}
+
+/// Turn a finished unlock into the message the UI shows.
+fn finished(result: Result<Session, VcError>) -> UnlockMsg {
+    match result {
+        Ok(session) => UnlockMsg::Done(Ok(session)),
+        Err(VcError::Cancelled) => UnlockMsg::Cancelled,
+        Err(e) => UnlockMsg::Done(Err(e.to_string())),
+    }
 }
 
 /// Start an unlock on a worker thread. `secret` is the effective secret
@@ -35,14 +58,19 @@ pub struct UnlockJob {
 /// browser treats the volume: opening read-only leaves the file descriptor
 /// `O_RDONLY`, and any later write through the FAT adapter fails with `EBADF`
 /// even though the adapter reports itself writable.
+///
+/// `kdf` narrows which key derivations are tried (Auto matches VeraCrypt).
 pub fn spawn_unlock(
     ctx: Context,
     path: PathBuf,
     secret: Zeroizing<Vec<u8>>,
     pim: u32,
     writable: bool,
+    kdf: KdfFilter,
 ) -> UnlockJob {
     let (tx, rx) = mpsc::channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let flag = cancel.clone();
     thread::spawn(move || {
         let progress_tx = tx.clone();
         let progress_ctx = ctx.clone();
@@ -54,11 +82,23 @@ pub fn spawn_unlock(
             });
             progress_ctx.request_repaint();
         };
-        let result = Session::unlock_with(&path, &secret, pim, writable, &mut on_progress);
-        let _ = tx.send(UnlockMsg::Done(result.map_err(|e| e.to_string())));
+        let dev = if writable {
+            FileDevice::open_rw(&path)
+        } else {
+            FileDevice::open_read(&path)
+        };
+        let result = dev.and_then(|dev| {
+            let secret = UnlockSecret {
+                kdf,
+                cancel: Some(&flag),
+                ..UnlockSecret::new(&secret, pim)
+            };
+            Session::unlock_device_with(Box::new(dev), &secret, &mut on_progress)
+        });
+        let _ = tx.send(finished(result));
         ctx.request_repaint();
     });
-    UnlockJob { rx }
+    UnlockJob { rx, cancel }
 }
 
 /// Start a hidden-protected outer unlock on a worker thread (P3). Opens the
@@ -71,8 +111,11 @@ pub fn spawn_unlock_protected(
     outer: Zeroizing<Vec<u8>>,
     hidden: Zeroizing<Vec<u8>>,
     pim: u32,
+    kdf: KdfFilter,
 ) -> UnlockJob {
     let (tx, rx) = mpsc::channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let flag = cancel.clone();
     thread::spawn(move || {
         let progress_tx = tx.clone();
         let progress_ctx = ctx.clone();
@@ -84,11 +127,23 @@ pub fn spawn_unlock_protected(
             });
             progress_ctx.request_repaint();
         };
-        let result = Session::unlock_outer_protected(&path, &outer, &hidden, pim, &mut on_progress);
-        let _ = tx.send(UnlockMsg::Done(result.map_err(|e| e.to_string())));
+        let result = FileDevice::open_rw(&path).and_then(|dev| {
+            let secret = UnlockSecret {
+                kdf,
+                cancel: Some(&flag),
+                ..UnlockSecret::new(&outer, pim)
+            };
+            Session::unlock_outer_protected_device_with(
+                Box::new(dev),
+                &secret,
+                &hidden,
+                &mut on_progress,
+            )
+        });
+        let _ = tx.send(finished(result));
         ctx.request_repaint();
     });
-    UnlockJob { rx }
+    UnlockJob { rx, cancel }
 }
 
 /// The result of an in-flight create.

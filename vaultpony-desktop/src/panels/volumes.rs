@@ -1,6 +1,7 @@
 //! Volumes panel: unlock a container, see what opened it, lock or mount it.
 
 use eframe::egui::{self, Ui};
+use vault_core::KdfFilter;
 
 use crate::app::App;
 use crate::i18n::Key;
@@ -69,11 +70,8 @@ fn unlock_form(app: &mut App, ui: &mut Ui) {
     ui.add_space(theme::space::SM);
     ui.horizontal(|ui| {
         ui.label(app.t(Key::Passphrase));
-        ui.add(
-            egui::TextEdit::singleline(&mut app.password)
-                .password(true)
-                .desired_width(240.0),
-        );
+        let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+        theme::password_edit(ui, "unlock", &mut app.password, 240.0, show, hide);
     });
 
     ui.horizontal(|ui| {
@@ -86,16 +84,33 @@ fn unlock_form(app: &mut App, ui: &mut Ui) {
         ui.weak(app.t(Key::HintPimDefault));
     });
 
+    // Key derivation (Argon2id support, VeraCrypt 1.26.29+).
+    ui.horizontal(|ui| {
+        ui.label(app.tr("Key derivation"));
+        for (value, label) in [
+            (KdfFilter::Auto, app.tr("Auto")),
+            (KdfFilter::Pbkdf2Only, "PBKDF2"),
+            (KdfFilter::Argon2idOnly, "Argon2id"),
+        ] {
+            ui.selectable_value(&mut app.unlock_kdf, value, label);
+        }
+    });
+    ui.weak(app.tr("Auto tries every KDF, like VeraCrypt. If you know which one your vault uses, picking it makes unlocking faster."));
+
     ui.add_space(theme::space::SM);
     let protect_label = app.t(Key::ProtectHiddenCheck);
     ui.checkbox(&mut app.protect_hidden, protect_label);
     if app.protect_hidden {
         ui.horizontal(|ui| {
             ui.label(app.t(Key::HiddenPassphrase));
-            ui.add(
-                egui::TextEdit::singleline(&mut app.hidden_password)
-                    .password(true)
-                    .desired_width(240.0),
+            let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+            theme::password_edit(
+                ui,
+                "unlock-hidden",
+                &mut app.hidden_password,
+                240.0,
+                show,
+                hide,
             );
         });
         ui.weak(app.tr("A write that would hit the hidden region is refused."));
@@ -112,6 +127,9 @@ fn unlock_form(app: &mut App, ui: &mut Ui) {
         }
         if running {
             ui.spinner();
+            if theme::secondary_button(ui, app.t(Key::Cancel)).clicked() {
+                app.cancel_unlock();
+            }
         }
     });
 

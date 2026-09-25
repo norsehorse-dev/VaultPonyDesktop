@@ -12,8 +12,9 @@ use vaultpony_desktop::newvolume::{self, Spec};
 use vaultpony_desktop::tools;
 use zeroize::Zeroizing;
 
-const A: &[u8] = b"first password";
-const B: &[u8] = b"second password";
+// PIM 1 is below the default, so both need 20+ characters (VeraCrypt's rule).
+const A: &[u8] = b"first password for the tools test";
+const B: &[u8] = b"second password for the tools test";
 const PIM: u32 = 1;
 
 fn scratch(name: &str) -> PathBuf {
@@ -63,7 +64,7 @@ fn backup_change_and_restore_round_trip() -> anyhow::Result<()> {
     assert!(fs::metadata(&backup)?.len() > 0, "backup file has content");
 
     // Change A -> B.
-    tools::change_password(&path, A, PIM, B, PIM)?;
+    tools::change_password(&path, A, PIM, B, PIM, None)?;
     assert!(opens(&path, B), "new password opens the volume");
     assert!(
         !opens(&path, A),
@@ -76,6 +77,33 @@ fn backup_change_and_restore_round_trip() -> anyhow::Result<()> {
         opens(&path, A),
         "restoring the backup revived the old password"
     );
+    Ok(())
+}
+
+#[test]
+fn change_password_can_move_the_header_to_argon2id_and_back() -> anyhow::Result<()> {
+    let path = scratch("tools_kdf.hc");
+    create_with(&path, A)?;
+
+    tools::change_password(&path, A, PIM, B, PIM, Some("Argon2id"))?;
+    let s = Session::unlock_with(&path, B, PIM, false, &mut |_, _, _| {})?;
+    assert_eq!(s.prf(), "Argon2id");
+    drop(s);
+
+    tools::change_password(&path, B, PIM, A, PIM, Some("SHA-512"))?;
+    let s = Session::unlock_with(&path, A, PIM, false, &mut |_, _, _| {})?;
+    assert_eq!(s.prf(), "SHA-512");
+    Ok(())
+}
+
+#[test]
+fn change_password_refuses_a_short_password_at_a_low_pim() -> anyhow::Result<()> {
+    let path = scratch("tools_short.hc");
+    create_with(&path, A)?;
+    let err = tools::change_password(&path, A, PIM, b"short", PIM, Some("Argon2id"))
+        .expect_err("a short password at PIM 1 must be refused");
+    assert!(err.to_string().contains("20"), "{err}");
+    assert!(opens(&path, A), "nothing was written");
     Ok(())
 }
 

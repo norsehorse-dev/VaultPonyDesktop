@@ -232,6 +232,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "argon2"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072"
+dependencies = [
+ "base64ct",
+ "blake2",
+ "cpufeatures",
+ "zeroize",
+]
+
+[[package]]
 name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -487,6 +499,12 @@ name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
+
+[[package]]
+name = "base64ct"
+version = "1.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "binrw"
@@ -2199,7 +2217,7 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "norse-exfat"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "log",
 ]
@@ -3824,7 +3842,7 @@ dependencies = [
 
 [[package]]
 name = "vault-core"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "getrandom 0.2.17",
  "log",
@@ -3838,7 +3856,7 @@ dependencies = [
 
 [[package]]
 name = "vaultpony-desktop"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -3860,9 +3878,10 @@ dependencies = [
 
 [[package]]
 name = "vc-crypto"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "aes",
+ "argon2",
  "blake2",
  "camellia",
  "cipher",
@@ -3882,7 +3901,7 @@ dependencies = [
 
 [[package]]
 name = "vc-format"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "crc32fast",
  "getrandom 0.2.17",
@@ -3895,7 +3914,7 @@ dependencies = [
 
 [[package]]
 name = "vc-fs"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "fatfs",
  "log",
@@ -3907,7 +3926,7 @@ dependencies = [
 
 [[package]]
 name = "vc-io"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "log",
  "vc-types",
@@ -3915,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "vc-types"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "thiserror 2.0.20",
  "zeroize",

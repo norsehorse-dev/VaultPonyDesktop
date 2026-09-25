@@ -7,7 +7,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use vault_core::{ContainerFs, Session};
+use vault_core::{ContainerFs, KdfFilter, Session, UnlockSecret};
 use vaultpony_desktop::newvolume::{self, Spec};
 use vaultpony_desktop::vfsops;
 use zeroize::Zeroizing;
@@ -66,8 +66,19 @@ fn create_exfat_with_keyfile_and_pim_reopens() -> anyhow::Result<()> {
     ))?;
 
     // The passphrase alone, without the keyfile, must not open it.
+    // Narrowed to PBKDF2: in Auto a wrong password also runs Argon2id at this
+    // PIM (1 GiB, 482 passes per slot), which is correct but far too slow here.
+    let bare = UnlockSecret {
+        kdf: KdfFilter::Pbkdf2Only,
+        ..UnlockSecret::new(pass, pim)
+    };
     assert!(
-        Session::unlock_with(&path, pass, pim, false, &mut |_, _, _| {}).is_err(),
+        Session::unlock_device_with(
+            Box::new(vc_io::FileDevice::open_read(&path)?),
+            &bare,
+            &mut |_, _, _| {}
+        )
+        .is_err(),
         "keyfile is required, so the bare passphrase fails"
     );
 

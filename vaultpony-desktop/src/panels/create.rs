@@ -85,6 +85,9 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
                     }
                 });
         });
+        if app.create.prf == "Argon2id" {
+            ui.small(app.tr("Argon2id is memory-hard: at the default PIM, opening this vault needs about 416 MB of free memory and takes a few seconds. VeraCrypt opens it from version 1.26.29."));
+        }
 
         ui.add_space(6.0);
 
@@ -114,19 +117,13 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
         // Passphrase and confirmation.
         ui.horizontal(|ui| {
             ui.label(app.t(Key::Passphrase));
-            ui.add(
-                egui::TextEdit::singleline(&mut app.create.pass)
-                    .password(true)
-                    .desired_width(240.0),
-            );
+            let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+            theme::password_edit(ui, "create", &mut app.create.pass, 240.0, show, hide);
         });
         ui.horizontal(|ui| {
             ui.label(app.t(Key::Confirm));
-            ui.add(
-                egui::TextEdit::singleline(&mut app.create.pass2)
-                    .password(true)
-                    .desired_width(240.0),
-            );
+            let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+            theme::password_edit(ui, "create-confirm", &mut app.create.pass2, 240.0, show, hide);
         });
 
         ui.add_space(6.0);
@@ -181,19 +178,13 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
             });
             ui.horizontal(|ui| {
                 ui.label(app.t(Key::HiddenPassphrase));
-                ui.add(
-                    egui::TextEdit::singleline(&mut app.create.hidden_pass)
-                        .password(true)
-                        .desired_width(240.0),
-                );
+                let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+                theme::password_edit(ui, "create-hidden", &mut app.create.hidden_pass, 240.0, show, hide);
             });
             ui.horizontal(|ui| {
                 ui.label(app.t(Key::Confirm));
-                ui.add(
-                    egui::TextEdit::singleline(&mut app.create.hidden_pass2)
-                        .password(true)
-                        .desired_width(240.0),
-                );
+                let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+                theme::password_edit(ui, "create-hidden-confirm", &mut app.create.hidden_pass2, 240.0, show, hide);
             });
             ui.horizontal(|ui| {
                 ui.label(app.tr("Hidden PIM"));

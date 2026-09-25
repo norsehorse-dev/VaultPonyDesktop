@@ -433,3 +433,36 @@ pub fn draw_mark(ui: &Ui, rect: egui::Rect) {
     p.circle_stroke(dial, rect.width() * 0.11, Stroke::new(1.6, GOLD_LIGHT));
     p.circle_filled(dial, rect.width() * 0.045, GOLD);
 }
+
+/// A password field with a Show/Hide toggle. The reveal state lives in egui's
+/// temporary memory under `id_salt`, so it starts masked each run and needs no
+/// field in the form structs. `show`/`hide` are the localized button labels.
+pub fn password_edit(
+    ui: &mut Ui,
+    id_salt: &str,
+    text: &mut String,
+    width: f32,
+    show: &str,
+    hide: &str,
+) -> Response {
+    let id = ui.make_persistent_id(("password_reveal", id_salt));
+    let mut revealed = ui.data(|d| d.get_temp::<bool>(id).unwrap_or(false));
+    let response = ui
+        .horizontal(|ui| {
+            let r = ui.add(
+                egui::TextEdit::singleline(text)
+                    .password(!revealed)
+                    .desired_width(width),
+            );
+            if ui
+                .small_button(if revealed { hide } else { show })
+                .clicked()
+            {
+                revealed = !revealed;
+            }
+            r
+        })
+        .inner;
+    ui.data_mut(|d| d.insert_temp(id, revealed));
+    response
+}

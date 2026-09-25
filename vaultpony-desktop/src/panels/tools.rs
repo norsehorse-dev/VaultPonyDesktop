@@ -55,11 +55,8 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
     ui.add_space(8.0);
     ui.horizontal(|ui| {
         ui.label(app.t(Key::Passphrase));
-        ui.add(
-            egui::TextEdit::singleline(&mut app.tools.pass)
-                .password(true)
-                .desired_width(240.0),
-        );
+        let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+        theme::password_edit(ui, "tools-current", &mut app.tools.pass, 240.0, show, hide);
     });
     ui.horizontal(|ui| {
         ui.label(app.t(Key::Pim));
@@ -160,18 +157,19 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
     ui.small(app.tr("The passphrase and PIM above are the current (old) secret."));
     ui.horizontal(|ui| {
         ui.label(app.tr("New passphrase"));
-        ui.add(
-            egui::TextEdit::singleline(&mut app.tools.new_pass)
-                .password(true)
-                .desired_width(240.0),
-        );
+        let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+        theme::password_edit(ui, "tools-new", &mut app.tools.new_pass, 240.0, show, hide);
     });
     ui.horizontal(|ui| {
         ui.label(app.t(Key::Confirm));
-        ui.add(
-            egui::TextEdit::singleline(&mut app.tools.new_pass2)
-                .password(true)
-                .desired_width(240.0),
+        let (show, hide) = (app.tr("Show"), app.tr("Hide"));
+        theme::password_edit(
+            ui,
+            "tools-confirm",
+            &mut app.tools.new_pass2,
+            240.0,
+            show,
+            hide,
         );
     });
     ui.horizontal(|ui| {
@@ -182,6 +180,27 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
                 .hint_text("0"),
         );
     });
+    // Optionally move the header to another KDF (Argon2id, VeraCrypt 1.26.29+).
+    // Switching clears the new PIM so the new KDF's own default applies.
+    ui.horizontal(|ui| {
+        ui.label(app.tr("Key derivation"));
+        let keep = app.tr("Keep current");
+        let before = app.tools.new_kdf.clone();
+        egui::ComboBox::from_id_salt("tools-new-kdf")
+            .selected_text(app.tools.new_kdf.as_deref().unwrap_or(keep))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut app.tools.new_kdf, None, keep);
+                for name in crate::newvolume::prf_names() {
+                    ui.selectable_value(&mut app.tools.new_kdf, Some(name.to_owned()), name);
+                }
+            });
+        if app.tools.new_kdf != before {
+            app.tools.new_pim.clear();
+        }
+    });
+    if app.tools.new_kdf.is_some() {
+        ui.small(app.tr("Only the header is re-encrypted with the new KDF. Leave the new PIM empty to use its default."));
+    }
     if ui
         .add_enabled(!busy, egui::Button::new(app.t(Key::ChangePassword)))
         .clicked()
@@ -195,6 +214,7 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
             let old_pim = parse_pim(&app.tools.pim);
             let new = Zeroizing::new(app.tools.new_pass.clone().into_bytes());
             let new_pim = parse_pim(&app.tools.new_pim);
+            let new_kdf = app.tools.new_kdf.clone();
             let c = container.clone();
             let ok_msg = app
                 .tr("Password changed. Use the new passphrase from now on.")
@@ -203,7 +223,7 @@ pub fn ui(app: &mut App, ui: &mut Ui) {
             app.tools.new_pass2.zeroize();
             app.tools.output = app.tr("Working...").to_owned();
             app.tool_job = Some(tasks::spawn_tool(ctx.clone(), move || {
-                tools::change_password(&c, &old, old_pim, &new, new_pim)
+                tools::change_password(&c, &old, old_pim, &new, new_pim, new_kdf.as_deref())
                     .map(|()| ok_msg)
                     .map_err(|e| format!("{e:#}"))
             }));

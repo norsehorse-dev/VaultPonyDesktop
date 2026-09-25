@@ -13,7 +13,7 @@ use vaultpony_desktop::newvolume::{self, Spec};
 use vaultpony_desktop::vfsops;
 use zeroize::Zeroizing;
 
-const PASS: &[u8] = b"mount test password";
+const PASS: &[u8] = b"mount test password, twenty plus";
 const PIM: u32 = 1;
 
 fn scratch(name: &str) -> PathBuf {

@@ -16,8 +16,9 @@ use vaultpony_desktop::newvolume::{self, HiddenPart, Spec};
 use vaultpony_desktop::vfsops;
 use zeroize::Zeroizing;
 
-const OUTER: &[u8] = b"outer volume secret";
-const HIDDEN: &[u8] = b"hidden volume secret";
+// PIM 1 is below the default, so both need 20+ characters (VeraCrypt's rule).
+const OUTER: &[u8] = b"outer volume secret passphrase";
+const HIDDEN: &[u8] = b"hidden volume secret passphrase";
 const PIM: u32 = 1;
 
 fn scratch(name: &str) -> PathBuf {
